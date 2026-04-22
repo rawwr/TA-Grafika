@@ -37,6 +37,7 @@ layout(std140, binding=1) uniform ShadingUniforms
 {
 	AnalyticalLight lights[NumLights];
 	vec3 eyePosition;
+	vec4 flags;
 };
 
 #if VULKAN
@@ -91,16 +92,21 @@ vec3 fresnelSchlick(vec3 F0, float cosTheta)
 void main()
 {
 	// Sample input textures to get shading model params.
-	vec3 albedo = texture(albedoTexture, vin.texcoord).rgb;
-	float metalness = texture(metalnessTexture, vin.texcoord).r;
-	float roughness = texture(roughnessTexture, vin.texcoord).r;
+	vec3 albedo = flags.x > 0.5 ? texture(albedoTexture, vin.texcoord).rgb : vec3(0.5);
+	float metalness = flags.z > 0.5 ? texture(metalnessTexture, vin.texcoord).r : 0.0;
+	float roughness = flags.w > 0.5 ? texture(roughnessTexture, vin.texcoord).r : 0.5;
 
 	// Outgoing light direction (vector from world-space fragment position to the "eye").
 	vec3 Lo = normalize(eyePosition - vin.position);
 
 	// Get current fragment's normal and transform to world space.
-	vec3 N = normalize(2.0 * texture(normalTexture, vin.texcoord).rgb - 1.0);
-	N = normalize(vin.tangentBasis * N);
+	vec3 N;
+	if (flags.y > 0.5) {
+		N = normalize(2.0 * texture(normalTexture, vin.texcoord).rgb - 1.0);
+		N = normalize(vin.tangentBasis * N);
+	} else {
+		N = normalize(vin.tangentBasis[2]);
+	}
 	
 	// Angle between surface normal and outgoing light direction.
 	float cosLo = max(0.0, dot(N, Lo));

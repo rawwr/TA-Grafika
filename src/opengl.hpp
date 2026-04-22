@@ -88,6 +88,7 @@ private:
 	GLuint m_tonemapProgram;
 	GLuint m_skyboxProgram;
 	GLuint m_pbrProgram;
+	GLuint m_phongProgram;
 
 	Texture m_envTexture;
 	Texture m_irmapTexture;

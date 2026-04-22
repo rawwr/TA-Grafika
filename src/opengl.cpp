@@ -36,6 +36,7 @@ struct ShadingUB
 		glm::vec4 radiance;
 	} lights[SceneSettings::NumLights];
 	glm::vec4 eyePosition;
+	glm::vec4 flags; // x: albedo, y: normal, z: metalness, w: roughness
 };
 
 GLFWwindow* Renderer::initialize(int width, int height, int maxSamples)
@@ -105,6 +106,7 @@ void Renderer::shutdown()
 	glDeleteProgram(m_tonemapProgram);
 	glDeleteProgram(m_skyboxProgram);
 	glDeleteProgram(m_pbrProgram);
+	glDeleteProgram(m_phongProgram);
 
 	deleteTexture(m_envTexture);
 	deleteTexture(m_irmapTexture);
@@ -151,6 +153,11 @@ void Renderer::setup()
 	m_pbrProgram = linkProgram({
 		compileShader("shaders/glsl/pbr_vs.glsl", GL_VERTEX_SHADER),
 		compileShader("shaders/glsl/pbr_fs.glsl", GL_FRAGMENT_SHADER)
+	});
+
+	m_phongProgram = linkProgram({
+		compileShader("shaders/glsl/pbr_vs.glsl", GL_VERTEX_SHADER),
+		compileShader("shaders/glsl/phong_fs.glsl", GL_FRAGMENT_SHADER)
 	});
 
 	m_albedoTexture = createTexture(Image::fromFile("textures/cerberus_A.png", 3), GL_RGB, GL_SRGB8);
@@ -274,36 +281,65 @@ void Renderer::render(GLFWwindow* window, const ViewSettings& view, const SceneS
 				shadingUniforms.lights[i].radiance = glm::vec4{};
 			}
 		}
+		shadingUniforms.flags = glm::vec4(
+			scene.useAlbedo ? 1.0f : 0.0f,
+			scene.useNormalMap ? 1.0f : 0.0f,
+			scene.useMetalness ? 1.0f : 0.0f,
+			scene.useRoughness ? 1.0f : 0.0f
+		);
 		glNamedBufferSubData(m_shadingUB, 0, sizeof(ShadingUB), &shadingUniforms);
 	}
 
 	// Prepare framebuffer for rendering.
 	glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer.id);
-	glClear(GL_DEPTH_BUFFER_BIT); // No need to clear color, since we'll overwrite the screen with our skybox.
-	
+	glClear(GL_DEPTH_BUFFER_BIT);
+
 	// Bind uniform buffers.
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, m_transformUB);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 1, m_shadingUB);
 
-	// Draw skybox.
-	glDisable(GL_DEPTH_TEST);
-	glUseProgram(m_skyboxProgram);
-	glBindTextureUnit(0, m_envTexture.id);
-	glBindVertexArray(m_skybox.vao);
-	glDrawElements(GL_TRIANGLES, m_skybox.numElements, GL_UNSIGNED_INT, 0);
+	auto drawScene = [&](GLuint program, bool pbr) {
+		// Draw skybox.
+		glDisable(GL_DEPTH_TEST);
+		glUseProgram(m_skyboxProgram);
+		glBindTextureUnit(0, m_envTexture.id);
+		glBindVertexArray(m_skybox.vao);
+		glDrawElements(GL_TRIANGLES, m_skybox.numElements, GL_UNSIGNED_INT, 0);
 
-	// Draw PBR model.
-	glEnable(GL_DEPTH_TEST);
-	glUseProgram(m_pbrProgram);
-	glBindTextureUnit(0, m_albedoTexture.id);
-	glBindTextureUnit(1, m_normalTexture.id);
-	glBindTextureUnit(2, m_metalnessTexture.id);
-	glBindTextureUnit(3, m_roughnessTexture.id);
-	glBindTextureUnit(4, m_envTexture.id);
-	glBindTextureUnit(5, m_irmapTexture.id);
-	glBindTextureUnit(6, m_spBRDF_LUT.id);
-	glBindVertexArray(m_pbrModel.vao);
-	glDrawElements(GL_TRIANGLES, m_pbrModel.numElements, GL_UNSIGNED_INT, 0);
+		// Draw model.
+		glEnable(GL_DEPTH_TEST);
+		glUseProgram(program);
+		glBindTextureUnit(0, m_albedoTexture.id);
+		glBindTextureUnit(1, m_normalTexture.id);
+		glBindTextureUnit(2, m_metalnessTexture.id);
+		glBindTextureUnit(3, m_roughnessTexture.id);
+		glBindTextureUnit(4, m_envTexture.id);
+		glBindTextureUnit(5, m_irmapTexture.id);
+		glBindTextureUnit(6, m_spBRDF_LUT.id);
+		glBindVertexArray(m_pbrModel.vao);
+		glDrawElements(GL_TRIANGLES, m_pbrModel.numElements, GL_UNSIGNED_INT, 0);
+	};
+
+	if (view.splitScreen) {
+		int halfWidth = m_framebuffer.width / 2;
+
+		glEnable(GL_SCISSOR_TEST);
+		glViewport(0, 0, m_framebuffer.width, m_framebuffer.height);
+
+		// Left half: PBR
+		glScissor(0, 0, halfWidth, m_framebuffer.height);
+		drawScene(m_pbrProgram, true);
+
+		// Right half: Phong
+		glScissor(halfWidth, 0, halfWidth, m_framebuffer.height);
+		drawScene(m_phongProgram, false);
+
+		glDisable(GL_SCISSOR_TEST);
+	}
+	else {
+		glViewport(0, 0, m_framebuffer.width, m_framebuffer.height);
+		drawScene(m_pbrProgram, true);
+	}
 		
 	// Resolve multisample framebuffer.
 	resolveFramebuffer(m_framebuffer, m_resolveFramebuffer);
@@ -314,6 +350,15 @@ void Renderer::render(GLFWwindow* window, const ViewSettings& view, const SceneS
 	glBindTextureUnit(0, m_resolveFramebuffer.colorTarget);
 	glBindVertexArray(m_emptyVAO);
 	glDrawArrays(GL_TRIANGLES, 0, 3);
+
+	if (view.splitScreen) {
+		int halfWidth = m_framebuffer.width / 2;
+		glEnable(GL_SCISSOR_TEST);
+		glScissor(halfWidth - 1, 0, 2, m_framebuffer.height);
+		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+		glDisable(GL_SCISSOR_TEST);
+	}
 
 	glfwSwapBuffers(window);
 }

@@ -9,8 +9,8 @@
 #include "application.hpp"
 
 namespace {
-	const int DisplaySizeX = 1024;
-	const int DisplaySizeY = 1024;
+	const int DisplaySizeX = 1920;
+	const int DisplaySizeY = 1080;
 	const int DisplaySamples = 16;
 
 	const float ViewDistance = 150.0f;
@@ -144,6 +144,21 @@ void Application::keyCallback(GLFWwindow* window, int key, int scancode, int act
 			break;
 		case GLFW_KEY_F3:
 			light = &self->m_sceneSettings.lights[2];
+			break;
+		case GLFW_KEY_1:
+			self->m_sceneSettings.useAlbedo = !self->m_sceneSettings.useAlbedo;
+			break;
+		case GLFW_KEY_2:
+			self->m_sceneSettings.useNormalMap = !self->m_sceneSettings.useNormalMap;
+			break;
+		case GLFW_KEY_3:
+			self->m_sceneSettings.useMetalness = !self->m_sceneSettings.useMetalness;
+			break;
+		case GLFW_KEY_4:
+			self->m_sceneSettings.useRoughness = !self->m_sceneSettings.useRoughness;
+			break;
+		case GLFW_KEY_SPACE:
+			self->m_viewSettings.splitScreen = !self->m_viewSettings.splitScreen;
 			break;
 		}
 

@@ -40,11 +40,17 @@ Shaders are heavily commented because there's where interesting stuff happens. :
 - Relatively recent version of Windows 10 SDK
 - [LunarG Vulkan SDK](https://vulkan.lunarg.com/sdk/home)
 
-#### How to build
+#### How to build (MinGW)
 
-Visual Studio solution is available at ```projects/msvc2017/PBR.sln```. After successful build the resulting executable
-and all needed DLLs can be found in ```data``` directory. Note that precompiled third party libraries are only available
-for x64 target.
+1. Open a PowerShell terminal.
+2. Configure and build using CMake:
+```powershell
+mkdir projects/cmake/build
+cd projects/cmake/build
+cmake -G "MinGW Makefiles" ..
+mingw32-make install
+```
+3. The resulting executable and all needed assets will be in the ```data``` directory.
 
 ### Linux
 
@@ -81,9 +87,8 @@ make install
 
 ## Running
 
-Make sure to run from within ```data``` directory as all paths are relative to it. API to be used can be specified on the command line
-as a single parameter (```-opengl```, ```-vulkan```, ```-d3d11```, or ```-d3d12```). When run with no parameters ```-d3d11``` is used
-on Windows, and ```-opengl``` on other platforms.
+The application runs as a standalone OpenGL 4.5 demo. Run `PBR.exe` from within the ```data``` directory. 
+The screen resolution is set to standard HD (1920x1080).
 
 ### Controls
 
@@ -93,6 +98,11 @@ LMB drag     | Rotate camera
 RMB drag     | Rotate 3D model
 Scroll wheel | Zoom in/out
 F1-F3        | Toggle analytical lights on/off
+Space        | Toggle split-screen (PBR vs Classic Phong)
+1            | Toggle Albedo texture component
+2            | Toggle Normal Map component
+3            | Toggle Metalness component
+4            | Toggle Roughness component
 
 ## Bibliography
 

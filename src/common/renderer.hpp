@@ -14,6 +14,7 @@ struct ViewSettings
 	float yaw = 0.0f;
 	float distance;
 	float fov;
+	bool splitScreen = true;
 };
 
 struct SceneSettings
@@ -27,6 +28,11 @@ struct SceneSettings
 		glm::vec3 radiance;
 		bool enabled = false;
 	} lights[NumLights];
+
+	bool useAlbedo = true;
+	bool useNormalMap = true;
+	bool useMetalness = true;
+	bool useRoughness = true;
 };
 
 class RendererInterface
