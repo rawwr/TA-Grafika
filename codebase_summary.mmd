@@ -1,14 +1,14 @@
 ---
-title: PBR - Physically Based Rendering Codebase Summary
+title: PBR - Physically Based Rendering Codebase Summary (OpenGL 4.5)
 ---
 
 graph TD
     subgraph Entry["Entry Point"]
-        main["src/common/main.cpp\nParses CLI args, selects renderer,\nruns Application loop"]
+        main["src/common/main.cpp\nInstantiates OpenGL::Renderer,\nruns Application loop"]
     end
 
     subgraph AppLayer["Application Layer (src/common/)"]
-        App["application.cpp/.hpp\nGLFW event loop, camera/scene input\n1024x1024 window, 16x MSAA\nMouse: LMB=rotate cam, RMB=rotate model\nScroll=zoom, F1-F3=toggle lights"]
+        App["application.cpp/.hpp\nGLFW event loop, camera/scene input\n1920x1080 window, 16x MSAA\nMouse: LMB=rotate cam, RMB=rotate model\nScroll=zoom, F1-F3=toggle lights,\nSpace=toggle split-screen"]
         RendIF["renderer.hpp\nRendererInterface (abstract base)\nViewSettings, SceneSettings structs\n3 directional lights, pitch/yaw/FOV/distance"]
     end
 
@@ -21,9 +21,6 @@ graph TD
 
     subgraph Renderers["Renderer Implementations (src/)"]
         OGL["opengl.cpp/.hpp\nOpenGL 4.5 Renderer\n~508 SLOC"]
-        VK["vulkan.cpp/.hpp\nVulkan Renderer\n~1843 SLOC"]
-        D11["d3d11.cpp/.hpp\nDirect3D 11 Renderer\n~673 SLOC"]
-        D12["d3d12.cpp/.hpp\nDirect3D 12 Renderer\n~1205 SLOC"]
     end
 
     subgraph OGLDetail["OpenGL 4.5 Renderer Detail"]
@@ -52,26 +49,17 @@ graph TD
         GLM["glm/ - Math (vectors/matrices)"]
         Assimp["assimp/ - Model loading"]
         STB["stb/ - Image loading"]
-        Volk["volk/ - Vulkan meta-loader"]
-        D3DX12["d3dx12/ - D3D12 helper"]
     end
 
     subgraph Build["Build System (projects/)"]
-        MSVC["projects/msvc2017/PBR.sln\nVisual Studio 2017 solution\nDefines: ENABLE_OPENGL, ENABLE_VULKAN,\nENABLE_D3D11, ENABLE_D3D12"]
-        CMake["projects/cmake/\nCMake build for Linux"]
+        CMake["projects/cmake/\nCMake build for Windows (MinGW) & Linux"]
     end
 
     %% Connections
     main --> App
     main --> OGL
-    main --> VK
-    main --> D11
-    main --> D12
     App --> RendIF
     OGL --> RendIF
-    VK --> RendIF
-    D11 --> RendIF
-    D12 --> RendIF
     App --> OGLInit
     OGLInit --> OGLSetup
     OGLSetup --> OGLRender
@@ -105,5 +93,5 @@ graph TD
     class OGL,OGLInit,OGLSetup,OGLRender,OGLHelpers oglStyle
     class ShaderPBR,ShaderSky,ShaderTone,ShaderCompute shaderStyle
     class Env,Model,Textures assetStyle
-    class GLFW,GLAD,GLM,Assimp,STB,Volk,D3DX12 libStyle
-    class MSVC,CMake buildStyle
+    class GLFW,GLAD,GLM,Assimp,STB libStyle
+    class CMake buildStyle

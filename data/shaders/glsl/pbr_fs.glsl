@@ -29,26 +29,14 @@ layout(location=0) in Vertex
 
 layout(location=0) out vec4 color;
 
-#if VULKAN
-layout(set=0, binding=1) uniform ShadingUniforms
-#else
 layout(std140, binding=1) uniform ShadingUniforms
-#endif // VULKAN
 {
 	AnalyticalLight lights[NumLights];
 	vec3 eyePosition;
-	vec4 flags;
+	vec4 flags; // x: albedo, y: normal, z: metalness, w: roughness
+	vec4 extra; // x: debugView, y: phongShininess
 };
 
-#if VULKAN
-layout(set=1, binding=0) uniform sampler2D albedoTexture;
-layout(set=1, binding=1) uniform sampler2D normalTexture;
-layout(set=1, binding=2) uniform sampler2D metalnessTexture;
-layout(set=1, binding=3) uniform sampler2D roughnessTexture;
-layout(set=1, binding=4) uniform samplerCube specularTexture;
-layout(set=1, binding=5) uniform samplerCube irradianceTexture;
-layout(set=1, binding=6) uniform sampler2D specularBRDF_LUT;
-#else
 layout(binding=0) uniform sampler2D albedoTexture;
 layout(binding=1) uniform sampler2D normalTexture;
 layout(binding=2) uniform sampler2D metalnessTexture;
@@ -56,7 +44,6 @@ layout(binding=3) uniform sampler2D roughnessTexture;
 layout(binding=4) uniform samplerCube specularTexture;
 layout(binding=5) uniform samplerCube irradianceTexture;
 layout(binding=6) uniform sampler2D specularBRDF_LUT;
-#endif // VULKAN
 
 // GGX/Towbridge-Reitz normal distribution function.
 // Uses Disney's reparametrization of alpha = roughness^2.
@@ -189,4 +176,11 @@ void main()
 
 	// Final fragment color.
 	color = vec4(directLighting + ambientLighting, 1.0);
+
+	// Debug Views
+	int debugView = int(extra.x);
+	if (debugView == 1) color = vec4(albedo, 1.0);
+	if (debugView == 2) color = vec4(N * 0.5 + 0.5, 1.0);
+	if (debugView == 3) color = vec4(vec3(metalness), 1.0);
+	if (debugView == 4) color = vec4(vec3(roughness), 1.0);
 }

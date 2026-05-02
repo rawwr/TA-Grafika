@@ -9,16 +9,11 @@ const float PI = 3.141592;
 const float TwoPI = 2 * PI;
 const float Epsilon = 0.00001;
 
-const uint NumSamples = 64 * 1024;
+const uint NumSamples = 16384;
 const float InvNumSamples = 1.0 / float(NumSamples);
 
-#if VULKAN
-layout(set=0, binding=0) uniform samplerCube inputTexture;
-layout(set=0, binding=1, rgba16f) restrict writeonly uniform imageCube outputTexture;
-#else
 layout(binding=0) uniform samplerCube inputTexture;
 layout(binding=0, rgba16f) restrict writeonly uniform imageCube outputTexture;
-#endif // VULKAN
 
 // Compute Van der Corput radical inverse
 // See: http://holger.dammertz.org/stuff/notes_HammersleyOnHemisphere.html

@@ -21,11 +21,5 @@ To improve the educational value, the lab should allow users to inspect the "raw
     -   **Metalness/Roughness**: Grayscale visualization of the material properties.
 -   **Picture-in-Picture**: Add small overlay windows in the corners of the screen showing the 2D texture files used for the current model.
 
-## 3. Advanced Lighting Features
--   **Shadow Mapping**: Implement shadow maps to allow objects to cast shadows on themselves and each other.
--   **Light Probes**: Add support for dynamic light probes to allow for local reflection changes.
--   **Additional Models**: A selection menu to swap between different models (e.g., the Cerberus gun, a simple sphere, or a complex architectural model).
-
 ## 4. Educational Lab Reports
--   **Screenshot Export**: A button to capture side-by-side comparison screenshots with metadata (which maps were active).
 -   **Auto-Labeller**: Overlay text on the screen clearly marking "SIDE A: PBR (Cook-Torrance)" and "SIDE B: Classic Phong."

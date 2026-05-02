@@ -10,11 +10,7 @@ layout(location=2) in vec3 tangent;
 layout(location=3) in vec3 bitangent;
 layout(location=4) in vec2 texcoord;
 
-#if VULKAN
-layout(set=0, binding=0) uniform TransformUniforms
-#else
 layout(std140, binding=0) uniform TransformUniforms
-#endif // VULKAN
 {
 	mat4 viewProjectionMatrix;
 	mat4 skyProjectionMatrix;

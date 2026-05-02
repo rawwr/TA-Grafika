@@ -7,11 +7,7 @@
 layout(location=0) in vec3 localPosition;
 layout(location=0) out vec4 color;
 
-#if VULKAN
-layout(set=1, binding=0) uniform samplerCube envTexture;
-#else
 layout(binding=0) uniform samplerCube envTexture;
-#endif // VULKAN
 
 void main()
 {

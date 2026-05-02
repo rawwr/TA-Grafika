@@ -7,13 +7,8 @@
 const float PI = 3.141592;
 const float TwoPI = 2 * PI;
 
-#if VULKAN
-layout(set=0, binding=0) uniform sampler2D inputTexture;
-layout(set=0, binding=1, rgba16f) restrict writeonly uniform imageCube outputTexture;
-#else
 layout(binding=0) uniform sampler2D inputTexture;
 layout(binding=0, rgba16f) restrict writeonly uniform imageCube outputTexture;
-#endif // VULKAN
 
 // Calculate normalized sampling direction vector based on current fragment coordinates (gl_GlobalInvocationID.xyz).
 // This is essentially "inverse-sampling": we reconstruct what the sampling vector would be if we wanted it to "hit"

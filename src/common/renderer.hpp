@@ -29,10 +29,22 @@ struct SceneSettings
 		bool enabled = false;
 	} lights[NumLights];
 
+	enum class DebugView {
+		None,
+		Albedo,
+		Normal,
+		Metalness,
+		Roughness
+	};
+
 	bool useAlbedo = true;
 	bool useNormalMap = true;
 	bool useMetalness = true;
 	bool useRoughness = true;
+
+	DebugView debugView = DebugView::None;
+	float exposure = 1.0f;
+	float phongShininess = 16.0f;
 };
 
 class RendererInterface
@@ -44,4 +56,5 @@ public:
 	virtual void shutdown() = 0;
 	virtual void setup() = 0;
 	virtual void render(GLFWwindow* window, const ViewSettings& view, const SceneSettings& scene) = 0;
+	virtual void gui(GLFWwindow* window, ViewSettings& view, SceneSettings& scene) = 0;
 };

@@ -14,6 +14,7 @@
 #include <glm/gtx/euler_angles.hpp>
 
 #include <GLFW/glfw3.h>
+#include <imgui.h>
 
 #include "common/mesh.hpp"
 #include "common/image.hpp"
@@ -37,7 +38,19 @@ struct ShadingUB
 	} lights[SceneSettings::NumLights];
 	glm::vec4 eyePosition;
 	glm::vec4 flags; // x: albedo, y: normal, z: metalness, w: roughness
+	glm::vec4 extra; // x: debugView, y: phongShininess
 };
+
+Renderer::Renderer()
+	: m_emptyVAO(0)
+	, m_tonemapProgram(0)
+	, m_skyboxProgram(0)
+	, m_pbrProgram(0)
+	, m_phongProgram(0)
+	, m_transformUB(0)
+	, m_shadingUB(0)
+{
+}
 
 GLFWwindow* Renderer::initialize(int width, int height, int maxSamples)
 {
@@ -59,7 +72,7 @@ GLFWwindow* Renderer::initialize(int width, int height, int maxSamples)
 	}
 
 	glfwMakeContextCurrent(window);
-	glfwSwapInterval(-1);
+	glfwSwapInterval(1); // Standard VSync for better compatibility
 
 	if(!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
 		throw std::runtime_error("Failed to initialize OpenGL extensions loader");
@@ -97,12 +110,6 @@ void Renderer::shutdown()
 
 	glDeleteVertexArrays(1, &m_emptyVAO);
 
-	glDeleteBuffers(1, &m_transformUB);
-	glDeleteBuffers(1, &m_shadingUB);
-
-	deleteMeshBuffer(m_skybox);
-	deleteMeshBuffer(m_pbrModel);
-	
 	glDeleteProgram(m_tonemapProgram);
 	glDeleteProgram(m_skyboxProgram);
 	glDeleteProgram(m_pbrProgram);
@@ -164,12 +171,18 @@ void Renderer::setup()
 	m_normalTexture = createTexture(Image::fromFile("textures/cerberus_N.png", 3), GL_RGB, GL_RGB8);
 	m_metalnessTexture = createTexture(Image::fromFile("textures/cerberus_M.png", 1), GL_RED, GL_R8);
 	m_roughnessTexture = createTexture(Image::fromFile("textures/cerberus_R.png", 1), GL_RED, GL_R8);
+
+	// Set swizzle mask for single-channel textures to show as grayscale in GUI.
+	GLint swizzleMask[] = { GL_RED, GL_RED, GL_RED, GL_ONE };
+	glTextureParameteriv(m_metalnessTexture.id, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+	glTextureParameteriv(m_roughnessTexture.id, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
 	
 	// Unfiltered environment cube map (temporary).
 	Texture envTextureUnfiltered = createTexture(GL_TEXTURE_CUBE_MAP, kEnvMapSize, kEnvMapSize, GL_RGBA16F);
 	
 	// Load & convert equirectangular environment map to a cubemap texture.
 	{
+		std::printf("Converting environment map to cubemap...\n");
 		GLuint equirectToCubeProgram = linkProgram({
 			compileShader("shaders/glsl/equirect2cube_cs.glsl", GL_COMPUTE_SHADER)
 		});
@@ -189,6 +202,7 @@ void Renderer::setup()
 	
 	// Compute pre-filtered specular environment map.
 	{
+		std::printf("Pre-filtering specular environment map...\n");
 		GLuint spmapProgram = linkProgram({
 			compileShader("shaders/glsl/spmap_cs.glsl", GL_COMPUTE_SHADER)
 		});
@@ -218,6 +232,7 @@ void Renderer::setup()
 
 	// Compute diffuse irradiance cubemap.
 	{
+		std::printf("Computing diffuse irradiance cubemap...\n");
 		GLuint irmapProgram = linkProgram({
 			compileShader("shaders/glsl/irmap_cs.glsl", GL_COMPUTE_SHADER)
 		});
@@ -233,6 +248,7 @@ void Renderer::setup()
 
 	// Compute Cook-Torrance BRDF 2D LUT for split-sum approximation.
 	{
+		std::printf("Computing Cook-Torrance BRDF LUT...\n");
 		GLuint spBRDFProgram = linkProgram({
 			compileShader("shaders/glsl/spbrdf_cs.glsl", GL_COMPUTE_SHADER)
 		});
@@ -248,11 +264,12 @@ void Renderer::setup()
 	}
 
 	glFinish();
+	std::printf("Initialization complete.\n");
 }
 
 void Renderer::render(GLFWwindow* window, const ViewSettings& view, const SceneSettings& scene)
 {
-	const glm::mat4 projectionMatrix = glm::perspectiveFov(view.fov, float(m_framebuffer.width), float(m_framebuffer.height), 1.0f, 1000.0f);
+	const glm::mat4 projectionMatrix = glm::perspectiveFov(glm::radians(view.fov), float(m_framebuffer.width), float(m_framebuffer.height), 1.0f, 1000.0f);
 	const glm::mat4 viewRotationMatrix = glm::eulerAngleXY(glm::radians(view.pitch), glm::radians(view.yaw));
 	const glm::mat4 sceneRotationMatrix = glm::eulerAngleXY(glm::radians(scene.pitch), glm::radians(scene.yaw));
 	const glm::mat4 viewMatrix = glm::translate(glm::mat4{ 1.0f }, { 0.0f, 0.0f, -view.distance }) * viewRotationMatrix;
@@ -287,12 +304,19 @@ void Renderer::render(GLFWwindow* window, const ViewSettings& view, const SceneS
 			scene.useMetalness ? 1.0f : 0.0f,
 			scene.useRoughness ? 1.0f : 0.0f
 		);
+		shadingUniforms.extra = glm::vec4(
+			(float)scene.debugView,
+			scene.phongShininess,
+			0.0f,
+			0.0f
+		);
 		glNamedBufferSubData(m_shadingUB, 0, sizeof(ShadingUB), &shadingUniforms);
 	}
 
 	// Prepare framebuffer for rendering.
 	glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer.id);
-	glClear(GL_DEPTH_BUFFER_BIT);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	// Bind uniform buffers.
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, m_transformUB);
@@ -346,7 +370,9 @@ void Renderer::render(GLFWwindow* window, const ViewSettings& view, const SceneS
 
 	// Draw a full screen triangle for postprocessing/tone mapping.
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glDisable(GL_DEPTH_TEST);
 	glUseProgram(m_tonemapProgram);
+	glProgramUniform1f(m_tonemapProgram, 0, scene.exposure); // Set exposure
 	glBindTextureUnit(0, m_resolveFramebuffer.colorTarget);
 	glBindVertexArray(m_emptyVAO);
 	glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -359,8 +385,97 @@ void Renderer::render(GLFWwindow* window, const ViewSettings& view, const SceneS
 		glClear(GL_COLOR_BUFFER_BIT);
 		glDisable(GL_SCISSOR_TEST);
 	}
+}
 
-	glfwSwapBuffers(window);
+void Renderer::gui(GLFWwindow* window, ViewSettings& view, SceneSettings& scene)
+{
+	ImGui::Begin("Control Panel");
+	
+	if (ImGui::CollapsingHeader("Rendering Mode", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Checkbox("Split-Screen Comparison", &view.splitScreen);
+		
+		int debugView = (int)scene.debugView;
+		ImGui::Text("Debug Visualization:");
+		ImGui::RadioButton("None", &debugView, (int)SceneSettings::DebugView::None);
+		ImGui::RadioButton("Albedo Only", &debugView, (int)SceneSettings::DebugView::Albedo);
+		ImGui::RadioButton("Normals Only", &debugView, (int)SceneSettings::DebugView::Normal);
+		ImGui::RadioButton("Metalness Only", &debugView, (int)SceneSettings::DebugView::Metalness);
+		ImGui::RadioButton("Roughness Only", &debugView, (int)SceneSettings::DebugView::Roughness);
+		scene.debugView = (SceneSettings::DebugView)debugView;
+	}
+
+	if (ImGui::CollapsingHeader("Material Components", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Checkbox("Use Albedo Map", &scene.useAlbedo);
+		ImGui::Checkbox("Use Normal Map", &scene.useNormalMap);
+		ImGui::Checkbox("Use Metalness Map", &scene.useMetalness);
+		ImGui::Checkbox("Use Roughness Map", &scene.useRoughness);
+	}
+
+	if (ImGui::CollapsingHeader("Light & Exposure", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::SliderFloat("Skybox Exposure", &scene.exposure, 0.0f, 10.0f);
+		ImGui::SliderFloat("Phong Shininess", &scene.phongShininess, 1.0f, 256.0f);
+		
+		for (int i = 0; i < SceneSettings::NumLights; ++i) {
+			char buf[32];
+			std::sprintf(buf, "Light %d", i + 1);
+			if (ImGui::TreeNode(buf)) {
+				ImGui::Checkbox("Enabled", &scene.lights[i].enabled);
+				
+				// Separate color and intensity for better HDR control
+				float intensity = glm::length(scene.lights[i].radiance);
+				glm::vec3 color = (intensity > 0.001f) ? (scene.lights[i].radiance / intensity) : glm::vec3(1.0f);
+				
+				if (ImGui::ColorEdit3("Color", &color[0])) {
+					scene.lights[i].radiance = color * intensity;
+				}
+				if (ImGui::DragFloat("Intensity", &intensity, 0.1f, 0.0f, 100.0f)) {
+					scene.lights[i].radiance = color * intensity;
+				}
+				
+				ImGui::TreePop();
+			}
+		}
+	}
+
+	if (ImGui::CollapsingHeader("Texture Preview (PiP)")) {
+		float size = 120.0f;
+		if (ImGui::BeginTable("pip_table", 2)) {
+			ImGui::TableNextColumn();
+			ImGui::Text("Albedo");
+			ImGui::Image((void*)(intptr_t)m_albedoTexture.id, ImVec2(size, size));
+			
+			ImGui::TableNextColumn();
+			ImGui::Text("Normal");
+			ImGui::Image((void*)(intptr_t)m_normalTexture.id, ImVec2(size, size));
+			
+			ImGui::TableNextColumn();
+			ImGui::Text("Metalness");
+			ImGui::Image((void*)(intptr_t)m_metalnessTexture.id, ImVec2(size, size));
+			
+			ImGui::TableNextColumn();
+			ImGui::Text("Roughness");
+			ImGui::Image((void*)(intptr_t)m_roughnessTexture.id, ImVec2(size, size));
+			
+			ImGui::EndTable();
+		}
+	}
+
+	ImGui::End();
+
+	// Stats Overlay
+	ImGui::SetNextWindowPos(ImVec2(10, 10));
+	ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove);
+	ImGui::Text("Performance: %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+	ImGui::End();
+
+	// Auto-Labeller
+	if (view.splitScreen) {
+		ImDrawList* drawList = ImGui::GetForegroundDrawList();
+		ImVec2 size = ImGui::GetIO().DisplaySize;
+		
+		drawList->AddText(ImVec2(20, size.y - 40), IM_COL32(255, 255, 255, 255), "SIDE A: PBR (Cook-Torrance)");
+		drawList->AddText(ImVec2(size.x / 2 + 20, size.y - 40), IM_COL32(255, 255, 255, 255), "SIDE B: Classic Phong");
+	}
 }
 	
 GLuint Renderer::compileShader(const std::string& filename, GLenum type)

@@ -5,6 +5,9 @@
 
 #include <stdexcept>
 #include <GLFW/glfw3.h>
+#include <imgui.h>
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_opengl3.h>
 
 #include "application.hpp"
 
@@ -39,6 +42,13 @@ Application::Application()
 	m_sceneSettings.lights[0].radiance = glm::vec3{1.0f};
 	m_sceneSettings.lights[1].radiance = glm::vec3{1.0f};
 	m_sceneSettings.lights[2].radiance = glm::vec3{1.0f};
+
+	for (int i = 0; i < SceneSettings::NumLights; ++i) {
+		m_sceneSettings.lights[i].enabled = true;
+	}
+
+	m_sceneSettings.exposure = 1.0f;
+	m_sceneSettings.phongShininess = 16.0f;
 }
 
 Application::~Application()
@@ -61,10 +71,42 @@ void Application::run(const std::unique_ptr<RendererInterface>& renderer)
 	glfwSetKeyCallback(m_window, Application::keyCallback);
 
 	renderer->setup();
+
+	// Setup Dear ImGui context
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO();
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+	// Setup Dear ImGui style
+	ImGui::StyleColorsDark();
+
+	// Setup Platform/Renderer backends
+	ImGui_ImplGlfw_InitForOpenGL(m_window, true);
+	ImGui_ImplOpenGL3_Init("#version 450");
+
 	while(!glfwWindowShouldClose(m_window)) {
-		renderer->render(m_window, m_viewSettings, m_sceneSettings);
 		glfwPollEvents();
+
+		// Start the Dear ImGui frame
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+
+		renderer->render(m_window, m_viewSettings, m_sceneSettings);
+		renderer->gui(m_window, m_viewSettings, m_sceneSettings);
+
+		// Rendering
+		ImGui::Render();
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+		glfwSwapBuffers(m_window);
 	}
+
+	// Cleanup
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
 
 	renderer->shutdown();
 }
@@ -72,6 +114,8 @@ void Application::run(const std::unique_ptr<RendererInterface>& renderer)
 void Application::mousePositionCallback(GLFWwindow* window, double xpos, double ypos)
 {
 	Application* self = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
+	if(ImGui::GetIO().WantCaptureMouse) return;
+
 	if(self->m_mode != InputMode::None) {
 		const double dx = xpos - self->m_prevCursorX;
 		const double dy = ypos - self->m_prevCursorY;
@@ -95,6 +139,7 @@ void Application::mousePositionCallback(GLFWwindow* window, double xpos, double 
 void Application::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {
 	Application* self = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
+	if(ImGui::GetIO().WantCaptureMouse) return;
 
 	const InputMode oldMode = self->m_mode;
 	if(action == GLFW_PRESS && self->m_mode == InputMode::None) {
@@ -125,12 +170,15 @@ void Application::mouseButtonCallback(GLFWwindow* window, int button, int action
 void Application::mouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 {
 	Application* self = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
+	if(ImGui::GetIO().WantCaptureMouse) return;
+
 	self->m_viewSettings.distance += ZoomSpeed * float(-yoffset);
 }
 	
 void Application::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
 	Application* self = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
+	if(ImGui::GetIO().WantCaptureKeyboard) return;
 
 	if(action == GLFW_PRESS) {
 		SceneSettings::Light* light = nullptr;

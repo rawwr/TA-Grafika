@@ -3,11 +3,7 @@
 // Copyright (c) 2017-2018 Michał Siejak
 
 // Environment skybox: Vertex program.
-#if VULKAN
-layout(set=0, binding=0) uniform TransformUniforms
-#else
 layout(std140, binding=0) uniform TransformUniforms
-#endif // VULKAN
 {
 	mat4 viewProjectionMatrix;
 	mat4 skyProjectionMatrix;

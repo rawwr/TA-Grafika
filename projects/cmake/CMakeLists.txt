@@ -37,6 +37,12 @@ set(srcOpenGL
 set(srcLibraries
     ${LIB_DIR}/stb/src/libstb.c
     ${LIB_DIR}/glad/src/glad.c
+    ${LIB_DIR}/imgui/imgui.cpp
+    ${LIB_DIR}/imgui/imgui_draw.cpp
+    ${LIB_DIR}/imgui/imgui_widgets.cpp
+    ${LIB_DIR}/imgui/imgui_tables.cpp
+    ${LIB_DIR}/imgui/backends/imgui_impl_glfw.cpp
+    ${LIB_DIR}/imgui/backends/imgui_impl_opengl3.cpp
 )
 
 # ── Include paths ─────────────────────────────────────────────────────────────
@@ -46,6 +52,8 @@ set(includePaths
     ${LIB_DIR}/glad/include
     ${LIB_DIR}/glfw/include
     ${LIB_DIR}/assimp/include
+    ${LIB_DIR}/imgui
+    ${LIB_DIR}/imgui/backends
 )
 
 # ── Prebuilt Windows libraries ────────────────────────────────────────────────

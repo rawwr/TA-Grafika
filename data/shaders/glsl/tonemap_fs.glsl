@@ -5,25 +5,17 @@
 // Tone-mapping & gamma correction.
 
 const float gamma     = 2.2;
-const float exposure  = 1.0;
 const float pureWhite = 1.0;
 
-#if VULKAN
-layout(input_attachment_index=0, set=0, binding=0) uniform subpassInput sceneColor;
-#else
 layout(location=0) in  vec2 screenPosition;
 layout(binding=0) uniform sampler2D sceneColor;
-#endif // VULKAN
+layout(location=0) uniform float exposure;
 
 layout(location=0) out vec4 outColor;
 
 void main()
 {
-#if VULKAN
-	vec3 color = subpassLoad(sceneColor).rgb * exposure;
-#else
 	vec3 color = texture(sceneColor, screenPosition).rgb * exposure;
-#endif // VULKAN
 
 	// Reinhard tonemapping operator.
 	// see: "Photographic Tone Reproduction for Digital Images", eq. 4

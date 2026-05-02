@@ -22,7 +22,8 @@ layout(std140, binding=1) uniform ShadingUniforms
 {
 	AnalyticalLight lights[NumLights];
 	vec3 eyePosition;
-	vec4 flags;
+	vec4 flags; // x: albedo, y: normal, z: metalness, w: roughness
+	vec4 extra; // x: debugView, y: phongShininess
 };
 
 layout(binding=0) uniform sampler2D albedoTexture;
@@ -44,7 +45,7 @@ void main()
 	// --- Material Interpretation for Phong ---
 	vec3 diffuseColor = albedo * (1.0 - metalness);
 	vec3 specularColor = mix(vec3(1.0), albedo, metalness);
-	float shininess = mix(128.0, 4.0, roughness);
+	float shininess = extra.y;
 
 	vec3 totalLighting = vec3(0.0);
 	

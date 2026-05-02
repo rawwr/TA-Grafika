@@ -43,10 +43,12 @@ struct Texture
 class Renderer final : public RendererInterface
 {
 public:
+	Renderer();
 	GLFWwindow* initialize(int width, int height, int maxSamples) override;
 	void shutdown() override;
 	void setup() override;
 	void render(GLFWwindow* window, const ViewSettings& view, const SceneSettings& scene) override;
+	void gui(GLFWwindow* window, ViewSettings& view, SceneSettings& scene) override;
 
 private:
 	static GLuint compileShader(const std::string& filename, GLenum type);

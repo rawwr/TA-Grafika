@@ -1,33 +1,17 @@
 # Physically Based Rendering
 (c) 2017 - 2018 Michał Siejak ([@Nadrin](https://twitter.com/Nadrin))
 
-An implementation of physically based shading model & image based lighting in various graphics APIs.
+A standalone implementation of physically based shading model & image based lighting using OpenGL 4.5.
 
 ![Screenshot](https://raw.githubusercontent.com/Nadrin/PBR/master/data/screenshot.jpg)
 
-API         | SLOC | Implementation status
-------------|------|----------------------
-OpenGL 4.5  | 508  | Done
-Vulkan      | 1843 | Done
-Direct3D 11 | 673  | Done
-Direct3D 12 | 1205 | Done
-
 ## About
 
-The goal of this project is to showcase the use of various modern graphics APIs and to provide a clear side-by-side comparison of them.
-I believe that an implementation of physically based shading is a sufficiently non-trivial use case for that comparison to be useful.
+The goal of this project is to showcase the use of OpenGL 4.5 for high-fidelity real-time rendering. It implements a physically based shading model with image-based lighting (IBL).
 
-Each implementation is completely self contained within a single source/header pair residing directly in ```src``` directory.
-The coding style is mostly procedural ("C with classes") using simple POD structs for grouping related data together.
-This was done for simplicity, readability, and to not impose any particular renderer design/organization.
+The implementation is self-contained within `src/opengl.cpp` and `src/opengl.hpp`. Shared functionality such as loading images, 3D models, and the application loop can be found in the `src/common` directory.
 
-Shared functionality (loading of images & 3D models, application event loop & entry point, misc utility functions)
-can be found in ```src/common``` directory.
-
-Please note that it was not my goal to try to come up with the most efficient/optimized use of each API. The rendered scene is very simple anyway
-(only handful of drawcalls, mostly static data), and when in doubt I tried to refrain from using "clever" tricks and went for simple solutions.
-
-Shaders are heavily commented because there's where interesting stuff happens. :)
+Shaders are heavily commented to explain the shading model and IBL techniques used.
 
 ## Building
 
@@ -35,10 +19,9 @@ Shaders are heavily commented because there's where interesting stuff happens. :
 
 #### Prerequisites
 
-- Windows 10 or Windows Server 2016 (x64 versions)
-- Visual Studio 2017 (any edition)
-- Relatively recent version of Windows 10 SDK
-- [LunarG Vulkan SDK](https://vulkan.lunarg.com/sdk/home)
+- Windows 10 or newer (x64)
+- MinGW-w64 toolchain
+- CMake 3.8 or newer
 
 #### How to build (MinGW)
 
@@ -50,7 +33,7 @@ cd projects/cmake/build
 cmake -G "MinGW Makefiles" ..
 mingw32-make install
 ```
-3. The resulting executable and all needed assets will be in the ```data``` directory.
+3. The resulting executable and all needed assets will be in the `data` directory.
 
 ### Linux
 
@@ -59,19 +42,16 @@ mingw32-make install
  - C/C++ compiler supporting C++14
  - CMake 3.8 or newer
  - pkg-config
- - [glslang from Khronos](https://github.com/KhronosGroup/glslang/releases/tag/master-tot)
- - Development files for GLFW3, Assimp, OpenGL & Vulkan
- 
+ - Development files for GLFW3, Assimp, and OpenGL
+  
 #### How to build
 
 1. Install prerequisites; for Debian/Ubuntu:
 ```
-sudo apt install build-essential cmake pkg-config libglfw3-dev libassimp-dev libgl1-mesa-dev libvulkan-dev
+sudo apt install build-essential cmake pkg-config libglfw3-dev libassimp-dev libgl1-mesa-dev
 ```
     
-2. Download & install glslang. Make sure that `glslangValidator` binary is in `PATH` or in `/opt/glslang/bin`.
-
-3. Configure & build the project:
+2. Configure & build the project:
 ```
 mkdir -p projects/cmake/build
 cd projects/cmake/build
@@ -79,15 +59,11 @@ cmake ..
 make install
 ```
 
-4. After successful build the resulting executable can be found in ```data``` directory.
-
-### macOS
-
-[Help wanted](https://github.com/Nadrin/PBR/issues/2).
+3. After successful build the resulting executable can be found in `data` directory.
 
 ## Running
 
-The application runs as a standalone OpenGL 4.5 demo. Run `PBR.exe` from within the ```data``` directory. 
+The application runs as a standalone OpenGL 4.5 demo. Run `PBR.exe` from within the `data` directory. 
 The screen resolution is set to standard HD (1920x1080).
 
 ### Controls
@@ -133,9 +109,7 @@ This project makes use of the following open source libraries:
 - [stb_image](https://github.com/nothings/stb)
 - [GLFW](http://www.glfw.org/)
 - [GLM](https://glm.g-truc.net/)
-- [D3D12 Helper Library](https://github.com/Microsoft/DirectX-Graphics-Samples/tree/master/Libraries/D3DX12)
 - [glad](https://github.com/Dav1dde/glad) (used to generate OpenGL function loader)
-- [volk](https://github.com/zeux/volk) (meta loader for Vulkan API)
 
 ## Included assets
 
@@ -143,3 +117,4 @@ The following assets are bundled with the project:
 
 - "Cerberus" gun model by [Andrew Maximov](http://artisaverb.info).
 - HDR environment map by [Bob Groothuis](http://www.bobgroothuis.com/blog/) obtained from [HDRLabs sIBL archive](http://www.hdrlabs.com/sibl/archive.html) (distributed under [CC-BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/us/)).
+/us/)).
