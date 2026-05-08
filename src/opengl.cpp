@@ -348,17 +348,17 @@ void Renderer::render(GLFWwindow* window, const ViewSettings& view, const SceneS
 	};
 
 	if (view.splitScreen) {
-		int halfWidth = m_framebuffer.width / 2;
+		int splitWidth = static_cast<int>(m_framebuffer.width * view.splitPosition);
 
 		glEnable(GL_SCISSOR_TEST);
 		glViewport(0, 0, m_framebuffer.width, m_framebuffer.height);
 
 		// Left half: PBR
-		glScissor(0, 0, halfWidth, m_framebuffer.height);
+		glScissor(0, 0, splitWidth, m_framebuffer.height);
 		drawScene(m_pbrProgram, true);
 
 		// Right half: Phong
-		glScissor(halfWidth, 0, halfWidth, m_framebuffer.height);
+		glScissor(splitWidth, 0, m_framebuffer.width - splitWidth, m_framebuffer.height);
 		drawScene(m_phongProgram, false);
 
 		glDisable(GL_SCISSOR_TEST);
@@ -381,9 +381,9 @@ void Renderer::render(GLFWwindow* window, const ViewSettings& view, const SceneS
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 
 	if (view.splitScreen) {
-		int halfWidth = m_framebuffer.width / 2;
+		int splitWidth = static_cast<int>(m_framebuffer.width * view.splitPosition);
 		glEnable(GL_SCISSOR_TEST);
-		glScissor(halfWidth - 1, 0, 2, m_framebuffer.height);
+		glScissor(splitWidth - 1, 0, 2, m_framebuffer.height);
 		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		glDisable(GL_SCISSOR_TEST);
@@ -475,9 +475,10 @@ void Renderer::gui(GLFWwindow* window, ViewSettings& view, SceneSettings& scene)
 	if (view.splitScreen) {
 		ImDrawList* drawList = ImGui::GetForegroundDrawList();
 		ImVec2 size = ImGui::GetIO().DisplaySize;
+		float splitX = size.x * view.splitPosition;
 		
 		drawList->AddText(ImVec2(20, size.y - 40), IM_COL32(255, 255, 255, 255), "SIDE A: PBR (Cook-Torrance)");
-		drawList->AddText(ImVec2(size.x / 2 + 20, size.y - 40), IM_COL32(255, 255, 255, 255), "SIDE B: Classic Phong");
+		drawList->AddText(ImVec2(splitX + 20, size.y - 40), IM_COL32(255, 255, 255, 255), "SIDE B: Classic Phong");
 	}
 }
 	

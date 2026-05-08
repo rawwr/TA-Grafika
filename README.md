@@ -89,6 +89,8 @@ Input        | Aksi
 -------------|-------
 LMB drag     | Rotasi kamera
 RMB drag     | Rotasi model 3D
+**WASD**     | **Rotasi model 3D (keyboard)**
+**← →**      | **Geser posisi split screen (kiri/kanan)**
 Scroll wheel | Zoom in/out
 F1-F3        | Toggle lampu directional on/off (default: OFF)
 Space        | Toggle split-screen (PBR vs Phong)
@@ -96,6 +98,10 @@ Space        | Toggle split-screen (PBR vs Phong)
 2            | Toggle komponen Normal Map
 3            | Toggle komponen Metalness
 4            | Toggle komponen Roughness
+
+**Catatan**: 
+- WASD memberikan kontrol rotasi model yang lebih halus dan intuitif. Tahan tombol untuk rotasi berkelanjutan.
+- Arrow keys kiri/kanan menggeser pembagi split screen untuk melihat lebih banyak dari sisi PBR atau Phong.
 
 ### Memahami Komponen Tekstur
 
@@ -166,6 +172,8 @@ Asset berikut dibundel dengan proyek:
 - ✅ Wider FOV (75°) untuk viewing yang lebih baik
 - ✅ Directional lights default OFF (pure IBL)
 - ✅ Default tangent/UV handling untuk model tanpa data lengkap
+- ✅ **WASD keyboard controls untuk rotasi model yang lebih intuitif**
+- ✅ **Arrow keys untuk menggeser posisi split screen secara smooth**
 - ✅ README dalam Bahasa Indonesia untuk pembelajaran
 
 ## Lisensi
