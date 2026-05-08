@@ -17,7 +17,7 @@ namespace {
 	const int DisplaySamples = 16;
 
 	const float ViewDistance = 150.0f;
-	const float ViewFOV      = 45.0f;
+	const float ViewFOV      = 75.0f;  // Increased from 60 to 75 for even wider view
 	const float OrbitSpeed   = 1.0f;
 	const float ZoomSpeed    = 4.0f;
 }
@@ -44,7 +44,7 @@ Application::Application()
 	m_sceneSettings.lights[2].radiance = glm::vec3{1.0f};
 
 	for (int i = 0; i < SceneSettings::NumLights; ++i) {
-		m_sceneSettings.lights[i].enabled = true;
+		m_sceneSettings.lights[i].enabled = false; // Lights off by default
 	}
 
 	m_sceneSettings.exposure = 1.0f;
