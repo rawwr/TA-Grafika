@@ -119,15 +119,30 @@ Gunakan panel kontrol untuk mengaktifkan mode visualisasi:
 - **Metalness Only**: Visualisasi nilai metalness (grayscale)
 - **Roughness Only**: Visualisasi nilai roughness (grayscale)
 
+### Dynamic Asset Loading
+
+Program ini mendukung switching model 3D dan HDR environment secara real-time melalui GUI:
+
+**Model 3D yang tersedia:**
+- F1 Wheel (default)
+- Cerberus Gun
+
+**HDR Environment yang tersedia:**
+- UM Outdor (default)
+- Indoor
+- Outdor 2
+
+Gunakan panel "Aset Scene" di GUI untuk beralih antar model dan environment. Loading dilakukan secara otomatis tanpa perlu restart aplikasi.
+
 ## Fitur Tambahan
 
 ### Multi-Mesh Loading
 Program ini telah dimodifikasi untuk mendukung loading model FBX dengan multiple sub-meshes. Semua mesh dalam file akan digabungkan secara otomatis dengan vertex offset yang benar.
 
 ### Konfigurasi Scene
-- **FOV**: 75° (field of view yang lebar)
-- **Model Scale**: Dapat disesuaikan via kode (default: 40x untuk model kecil)
-- **Model Rotation**: Dapat disesuaikan via kode (default: 90° rotasi X)
+- **FOV**: 80° (field of view yang seimbang)
+- **Model Normalization**: Otomatis menormalkan skala dan posisi model ke tengah scene
+- **Model Rotation**: Koreksi rotasi otomatis (misal: 90° rotasi X untuk F1 Wheel)
 - **Lights**: 3 directional lights (default OFF, gunakan IBL saja)
 
 ## Referensi
@@ -168,13 +183,14 @@ Asset berikut dibundel dengan proyek:
 ## Modifikasi dari Versi Original
 
 - ✅ Multi-mesh FBX loading support
-- ✅ Adjustable model scale dan rotation
-- ✅ Wider FOV (75°) untuk viewing yang lebih baik
+- ✅ **Normalisasi Model Otomatis** (skala & posisi ke tengah)
+- ✅ Wider FOV (80°) untuk viewing yang lebih baik
 - ✅ Directional lights default OFF (pure IBL)
 - ✅ Default tangent/UV handling untuk model tanpa data lengkap
-- ✅ **WASD keyboard controls untuk rotasi model yang lebih intuitif**
+- ✅ **WASD keyboard controls dengan rotasi YX yang intuitif**
 - ✅ **Arrow keys untuk menggeser posisi split screen secara smooth**
-- ✅ README dalam Bahasa Indonesia untuk pembelajaran
+- ✅ **Dynamic model dan HDR environment loading via GUI**
+- ✅ README dan UI dalam Bahasa Indonesia untuk pembelajaran
 
 ## Lisensi
 

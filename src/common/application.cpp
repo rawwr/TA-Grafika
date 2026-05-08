@@ -17,7 +17,7 @@ namespace {
 	const int DisplaySamples = 16;
 
 	const float ViewDistance = 150.0f;
-	const float ViewFOV      = 75.0f;  // Increased from 60 to 75 for even wider view
+	const float ViewFOV      = 80.0f;  // Balanced view
 	const float OrbitSpeed   = 1.0f;
 	const float ZoomSpeed    = 4.0f;
 	const float KeyboardRotationSpeed = 0.5f;  // Slow rotation speed for WASD keys

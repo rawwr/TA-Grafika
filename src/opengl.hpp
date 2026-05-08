@@ -9,6 +9,7 @@
 
 
 #include <string>
+#include <vector>
 #include <glad/glad.h>
 
 #include "common/renderer.hpp"
@@ -65,6 +66,9 @@ private:
 	static MeshBuffer createMeshBuffer(const std::shared_ptr<class Mesh>& mesh);
 	static void deleteMeshBuffer(MeshBuffer& buffer);
 
+	void loadModel(int modelIndex);
+	void loadHDREnvironment(int hdrIndex);
+
 	static GLuint createUniformBuffer(const void* data, size_t size);
 	template<typename T> GLuint createUniformBuffer(const T* data=nullptr)
 	{
@@ -103,6 +107,30 @@ private:
 
 	GLuint m_transformUB;
 	GLuint m_shadingUB;
+
+	glm::mat4 m_modelNormalization;
+	glm::mat4 m_modelPreRotation;
+
+	// Constants for texture sizes
+	static constexpr int kEnvMapSize = 1024;
+	static constexpr int kIrradianceMapSize = 32;
+	static constexpr int kBRDF_LUT_Size = 256;
+
+	// Dynamic loading lists
+	struct ModelInfo {
+		const char* name;
+		const char* meshPath;
+		const char* albedoPath;
+		const char* normalPath;
+		const char* metalnessPath;
+		const char* roughnessPath;
+	};
+	struct HDRInfo {
+		const char* name;
+		const char* path;
+	};
+	std::vector<ModelInfo> m_availableModels;
+	std::vector<HDRInfo> m_availableHDRs;
 };
 
 } // OpenGL
