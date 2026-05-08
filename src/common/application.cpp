@@ -17,9 +17,11 @@ namespace {
 	const int DisplaySamples = 16;
 
 	const float ViewDistance = 150.0f;
-	const float ViewFOV      = 45.0f;
+	const float ViewFOV      = 75.0f;  // Increased from 60 to 75 for even wider view
 	const float OrbitSpeed   = 1.0f;
 	const float ZoomSpeed    = 4.0f;
+	const float KeyboardRotationSpeed = 0.5f;  // Slow rotation speed for WASD keys
+	const float SplitMoveSpeed = 0.01f;  // Speed for moving split screen divider
 }
 
 Application::Application()
@@ -44,7 +46,7 @@ Application::Application()
 	m_sceneSettings.lights[2].radiance = glm::vec3{1.0f};
 
 	for (int i = 0; i < SceneSettings::NumLights; ++i) {
-		m_sceneSettings.lights[i].enabled = true;
+		m_sceneSettings.lights[i].enabled = false; // Lights off by default
 	}
 
 	m_sceneSettings.exposure = 1.0f;
@@ -180,10 +182,37 @@ void Application::keyCallback(GLFWwindow* window, int key, int scancode, int act
 	Application* self = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
 	if(ImGui::GetIO().WantCaptureKeyboard) return;
 
-	if(action == GLFW_PRESS) {
+	if(action == GLFW_PRESS || action == GLFW_REPEAT) {
 		SceneSettings::Light* light = nullptr;
 		
 		switch(key) {
+		// WASD model rotation controls (intuitive orbit-style)
+		case GLFW_KEY_W:
+			self->m_sceneSettings.pitch -= KeyboardRotationSpeed;
+			break;
+		case GLFW_KEY_S:
+			self->m_sceneSettings.pitch += KeyboardRotationSpeed;
+			break;
+		case GLFW_KEY_A:
+			self->m_sceneSettings.yaw -= KeyboardRotationSpeed;
+			break;
+		case GLFW_KEY_D:
+			self->m_sceneSettings.yaw += KeyboardRotationSpeed;
+			break;
+		// Arrow keys for split screen position
+		case GLFW_KEY_LEFT:
+			if (self->m_viewSettings.splitScreen) {
+				self->m_viewSettings.splitPosition -= SplitMoveSpeed;
+				if (self->m_viewSettings.splitPosition < 0.1f) self->m_viewSettings.splitPosition = 0.1f;
+			}
+			break;
+		case GLFW_KEY_RIGHT:
+			if (self->m_viewSettings.splitScreen) {
+				self->m_viewSettings.splitPosition += SplitMoveSpeed;
+				if (self->m_viewSettings.splitPosition > 0.9f) self->m_viewSettings.splitPosition = 0.9f;
+			}
+			break;
+		// Light toggles
 		case GLFW_KEY_F1:
 			light = &self->m_sceneSettings.lights[0];
 			break;
@@ -193,6 +222,7 @@ void Application::keyCallback(GLFWwindow* window, int key, int scancode, int act
 		case GLFW_KEY_F3:
 			light = &self->m_sceneSettings.lights[2];
 			break;
+		// Texture toggles
 		case GLFW_KEY_1:
 			self->m_sceneSettings.useAlbedo = !self->m_sceneSettings.useAlbedo;
 			break;

@@ -15,6 +15,7 @@ struct ViewSettings
 	float distance;
 	float fov;
 	bool splitScreen = true;
+	float splitPosition = 0.5f; // 0.0 to 1.0, default at center
 };
 
 struct SceneSettings

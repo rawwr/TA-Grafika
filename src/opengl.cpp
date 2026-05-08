@@ -156,7 +156,7 @@ void Renderer::setup()
 		compileShader("shaders/glsl/skybox_fs.glsl", GL_FRAGMENT_SHADER)
 	});
 
-	m_pbrModel = createMeshBuffer(Mesh::fromFile("meshes/cerberus.fbx"));
+	m_pbrModel = createMeshBuffer(Mesh::fromFile("meshes/F1 Wheel.fbx"));
 	m_pbrProgram = linkProgram({
 		compileShader("shaders/glsl/pbr_vs.glsl", GL_VERTEX_SHADER),
 		compileShader("shaders/glsl/pbr_fs.glsl", GL_FRAGMENT_SHADER)
@@ -167,10 +167,10 @@ void Renderer::setup()
 		compileShader("shaders/glsl/phong_fs.glsl", GL_FRAGMENT_SHADER)
 	});
 
-	m_albedoTexture = createTexture(Image::fromFile("textures/cerberus_A.png", 3), GL_RGB, GL_SRGB8);
-	m_normalTexture = createTexture(Image::fromFile("textures/cerberus_N.png", 3), GL_RGB, GL_RGB8);
-	m_metalnessTexture = createTexture(Image::fromFile("textures/cerberus_M.png", 1), GL_RED, GL_R8);
-	m_roughnessTexture = createTexture(Image::fromFile("textures/cerberus_R.png", 1), GL_RED, GL_R8);
+	m_albedoTexture = createTexture(Image::fromFile("textures/F1 Wheel_Albedo.png", 3), GL_RGB, GL_SRGB8);
+	m_normalTexture = createTexture(Image::fromFile("textures/F1 Wheel_Normal.png", 3), GL_RGB, GL_RGB8);
+	m_metalnessTexture = createTexture(Image::fromFile("textures/F1 Wheel_Metalness.png", 1), GL_RED, GL_R8);
+	m_roughnessTexture = createTexture(Image::fromFile("textures/F1 Wheel_Roughness.png", 1), GL_RED, GL_R8);
 
 	// Set swizzle mask for single-channel textures to show as grayscale in GUI.
 	GLint swizzleMask[] = { GL_RED, GL_RED, GL_RED, GL_ONE };
@@ -272,6 +272,9 @@ void Renderer::render(GLFWwindow* window, const ViewSettings& view, const SceneS
 	const glm::mat4 projectionMatrix = glm::perspectiveFov(glm::radians(view.fov), float(m_framebuffer.width), float(m_framebuffer.height), 1.0f, 1000.0f);
 	const glm::mat4 viewRotationMatrix = glm::eulerAngleXY(glm::radians(view.pitch), glm::radians(view.yaw));
 	const glm::mat4 sceneRotationMatrix = glm::eulerAngleXY(glm::radians(scene.pitch), glm::radians(scene.yaw));
+	const glm::mat4 modelRotation = glm::rotate(glm::mat4{1.0f}, glm::radians(90.0f), glm::vec3{1.0f, 0.0f, 0.0f}); // Rotate 90° around X axis
+	const glm::mat4 scaleMatrix = glm::scale(glm::mat4{1.0f}, glm::vec3{40.0f, 40.0f, 40.0f}); // Scale up 40x to verify
+	const glm::mat4 sceneTransform = sceneRotationMatrix * modelRotation * scaleMatrix;
 	const glm::mat4 viewMatrix = glm::translate(glm::mat4{ 1.0f }, { 0.0f, 0.0f, -view.distance }) * viewRotationMatrix;
 	const glm::vec3 eyePosition = glm::inverse(viewMatrix)[3];
 
@@ -280,7 +283,7 @@ void Renderer::render(GLFWwindow* window, const ViewSettings& view, const SceneS
 		TransformUB transformUniforms;
 		transformUniforms.viewProjectionMatrix = projectionMatrix * viewMatrix;
 		transformUniforms.skyProjectionMatrix  = projectionMatrix * viewRotationMatrix;
-		transformUniforms.sceneRotationMatrix  = sceneRotationMatrix;
+		transformUniforms.sceneRotationMatrix  = sceneTransform;
 		glNamedBufferSubData(m_transformUB, 0, sizeof(TransformUB), &transformUniforms);
 	}
 
@@ -345,17 +348,17 @@ void Renderer::render(GLFWwindow* window, const ViewSettings& view, const SceneS
 	};
 
 	if (view.splitScreen) {
-		int halfWidth = m_framebuffer.width / 2;
+		int splitWidth = static_cast<int>(m_framebuffer.width * view.splitPosition);
 
 		glEnable(GL_SCISSOR_TEST);
 		glViewport(0, 0, m_framebuffer.width, m_framebuffer.height);
 
 		// Left half: PBR
-		glScissor(0, 0, halfWidth, m_framebuffer.height);
+		glScissor(0, 0, splitWidth, m_framebuffer.height);
 		drawScene(m_pbrProgram, true);
 
 		// Right half: Phong
-		glScissor(halfWidth, 0, halfWidth, m_framebuffer.height);
+		glScissor(splitWidth, 0, m_framebuffer.width - splitWidth, m_framebuffer.height);
 		drawScene(m_phongProgram, false);
 
 		glDisable(GL_SCISSOR_TEST);
@@ -378,9 +381,9 @@ void Renderer::render(GLFWwindow* window, const ViewSettings& view, const SceneS
 	glDrawArrays(GL_TRIANGLES, 0, 3);
 
 	if (view.splitScreen) {
-		int halfWidth = m_framebuffer.width / 2;
+		int splitWidth = static_cast<int>(m_framebuffer.width * view.splitPosition);
 		glEnable(GL_SCISSOR_TEST);
-		glScissor(halfWidth - 1, 0, 2, m_framebuffer.height);
+		glScissor(splitWidth - 1, 0, 2, m_framebuffer.height);
 		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		glDisable(GL_SCISSOR_TEST);
@@ -472,9 +475,10 @@ void Renderer::gui(GLFWwindow* window, ViewSettings& view, SceneSettings& scene)
 	if (view.splitScreen) {
 		ImDrawList* drawList = ImGui::GetForegroundDrawList();
 		ImVec2 size = ImGui::GetIO().DisplaySize;
+		float splitX = size.x * view.splitPosition;
 		
 		drawList->AddText(ImVec2(20, size.y - 40), IM_COL32(255, 255, 255, 255), "SIDE A: PBR (Cook-Torrance)");
-		drawList->AddText(ImVec2(size.x / 2 + 20, size.y - 40), IM_COL32(255, 255, 255, 255), "SIDE B: Classic Phong");
+		drawList->AddText(ImVec2(splitX + 20, size.y - 40), IM_COL32(255, 255, 255, 255), "SIDE B: Classic Phong");
 	}
 }
 	
