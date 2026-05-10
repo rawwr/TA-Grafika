@@ -49,6 +49,8 @@ Renderer::Renderer()
 	, m_phongProgram(0)
 	, m_transformUB(0)
 	, m_shadingUB(0)
+	, m_modelNormalization(1.0f)
+	, m_modelPreRotation(1.0f)
 {
 }
 
@@ -66,7 +68,7 @@ GLFWwindow* Renderer::initialize(int width, int height, int maxSamples)
 	glfwWindowHint(GLFW_STENCIL_BITS, 0);
 	glfwWindowHint(GLFW_SAMPLES, 0);
 
-	GLFWwindow* window = glfwCreateWindow(width, height, "Physically Based Rendering (OpenGL 4.5)", nullptr, nullptr);
+	GLFWwindow* window = glfwCreateWindow(width, height, "Physically Based Rendering - Demo Pembelajaran", nullptr, nullptr);
 	if(!window) {
 		throw std::runtime_error("Failed to create OpenGL context");
 	}
@@ -127,10 +129,6 @@ void Renderer::shutdown()
 
 void Renderer::setup()
 {
-	// Parameters
-	static constexpr int kEnvMapSize = 1024;
-	static constexpr int kIrradianceMapSize = 32;
-	static constexpr int kBRDF_LUT_Size = 256;
 
 	// Set global OpenGL state.
 	glEnable(GL_CULL_FACE);
@@ -144,6 +142,17 @@ void Renderer::setup()
 	m_transformUB = createUniformBuffer<TransformUB>();
 	m_shadingUB = createUniformBuffer<ShadingUB>();
 
+	// Initialize available models and HDRs
+	m_availableModels = {
+		{"F1 Wheel", "meshes/F1 Wheel.fbx", "textures/F1 Wheel_Albedo.png", "textures/F1 Wheel_Normal.png", "textures/F1 Wheel_Metalness.png", "textures/F1 Wheel_Roughness.png"},
+		{"Cerberus Gun", "meshes/cerberus.fbx", "textures/cerberus_A.png", "textures/cerberus_N.png", "textures/cerberus_M.png", "textures/cerberus_R.png"}
+	};
+	m_availableHDRs = {
+		{"UM Outdor", "environment.hdr"},
+		{"Indoor", "indoor.hdr"},
+		{"Outdor 2", "old.environment.hdr"}
+	};
+
 	// Load assets & compile/link rendering programs.
 	m_tonemapProgram = linkProgram({
 		compileShader("shaders/glsl/tonemap_vs.glsl", GL_VERTEX_SHADER),
@@ -156,7 +165,6 @@ void Renderer::setup()
 		compileShader("shaders/glsl/skybox_fs.glsl", GL_FRAGMENT_SHADER)
 	});
 
-	m_pbrModel = createMeshBuffer(Mesh::fromFile("meshes/F1 Wheel.fbx"));
 	m_pbrProgram = linkProgram({
 		compileShader("shaders/glsl/pbr_vs.glsl", GL_VERTEX_SHADER),
 		compileShader("shaders/glsl/pbr_fs.glsl", GL_FRAGMENT_SHADER)
@@ -167,84 +175,11 @@ void Renderer::setup()
 		compileShader("shaders/glsl/phong_fs.glsl", GL_FRAGMENT_SHADER)
 	});
 
-	m_albedoTexture = createTexture(Image::fromFile("textures/F1 Wheel_Albedo.png", 3), GL_RGB, GL_SRGB8);
-	m_normalTexture = createTexture(Image::fromFile("textures/F1 Wheel_Normal.png", 3), GL_RGB, GL_RGB8);
-	m_metalnessTexture = createTexture(Image::fromFile("textures/F1 Wheel_Metalness.png", 1), GL_RED, GL_R8);
-	m_roughnessTexture = createTexture(Image::fromFile("textures/F1 Wheel_Roughness.png", 1), GL_RED, GL_R8);
-
-	// Set swizzle mask for single-channel textures to show as grayscale in GUI.
-	GLint swizzleMask[] = { GL_RED, GL_RED, GL_RED, GL_ONE };
-	glTextureParameteriv(m_metalnessTexture.id, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
-	glTextureParameteriv(m_roughnessTexture.id, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+	// Load initial model (index 0)
+	loadModel(0);
 	
-	// Unfiltered environment cube map (temporary).
-	Texture envTextureUnfiltered = createTexture(GL_TEXTURE_CUBE_MAP, kEnvMapSize, kEnvMapSize, GL_RGBA16F);
-	
-	// Load & convert equirectangular environment map to a cubemap texture.
-	{
-		std::printf("Converting environment map to cubemap...\n");
-		GLuint equirectToCubeProgram = linkProgram({
-			compileShader("shaders/glsl/equirect2cube_cs.glsl", GL_COMPUTE_SHADER)
-		});
-
-		Texture envTextureEquirect = createTexture(Image::fromFile("environment.hdr", 3), GL_RGB, GL_RGB16F, 1);
-
-		glUseProgram(equirectToCubeProgram);
-		glBindTextureUnit(0, envTextureEquirect.id);
-		glBindImageTexture(0, envTextureUnfiltered.id, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
-		glDispatchCompute(envTextureUnfiltered.width/32, envTextureUnfiltered.height/32, 6);
-		
-		glDeleteTextures(1, &envTextureEquirect.id);
-		glDeleteProgram(equirectToCubeProgram);
-	}
-	
-	glGenerateTextureMipmap(envTextureUnfiltered.id);
-	
-	// Compute pre-filtered specular environment map.
-	{
-		std::printf("Pre-filtering specular environment map...\n");
-		GLuint spmapProgram = linkProgram({
-			compileShader("shaders/glsl/spmap_cs.glsl", GL_COMPUTE_SHADER)
-		});
-
-		m_envTexture = createTexture(GL_TEXTURE_CUBE_MAP, kEnvMapSize, kEnvMapSize, GL_RGBA16F);
-
-		// Copy 0th mipmap level into destination environment map.
-		glCopyImageSubData(envTextureUnfiltered.id, GL_TEXTURE_CUBE_MAP, 0, 0, 0, 0,
-			m_envTexture.id, GL_TEXTURE_CUBE_MAP, 0, 0, 0, 0,
-			m_envTexture.width, m_envTexture.height, 6);
-
-		glUseProgram(spmapProgram);
-		glBindTextureUnit(0, envTextureUnfiltered.id);
-
-		// Pre-filter rest of the mip chain.
-		const float deltaRoughness = 1.0f / glm::max(float(m_envTexture.levels-1), 1.0f);
-		for(int level=1, size=kEnvMapSize/2; level<=m_envTexture.levels; ++level, size/=2) {
-			const GLuint numGroups = glm::max(1, size/32);
-			glBindImageTexture(0, m_envTexture.id, level, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
-			glProgramUniform1f(spmapProgram, 0, level * deltaRoughness);
-			glDispatchCompute(numGroups, numGroups, 6);
-		}
-		glDeleteProgram(spmapProgram);
-	}
-
-	glDeleteTextures(1, &envTextureUnfiltered.id);
-
-	// Compute diffuse irradiance cubemap.
-	{
-		std::printf("Computing diffuse irradiance cubemap...\n");
-		GLuint irmapProgram = linkProgram({
-			compileShader("shaders/glsl/irmap_cs.glsl", GL_COMPUTE_SHADER)
-		});
-
-		m_irmapTexture = createTexture(GL_TEXTURE_CUBE_MAP, kIrradianceMapSize, kIrradianceMapSize, GL_RGBA16F, 1);
-
-		glUseProgram(irmapProgram);
-		glBindTextureUnit(0, m_envTexture.id);
-		glBindImageTexture(0, m_irmapTexture.id, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
-		glDispatchCompute(m_irmapTexture.width/32, m_irmapTexture.height/32, 6);
-		glDeleteProgram(irmapProgram);
-	}
+	// Load initial HDR environment (index 0)
+	loadHDREnvironment(0);
 
 	// Compute Cook-Torrance BRDF 2D LUT for split-sum approximation.
 	{
@@ -269,12 +204,20 @@ void Renderer::setup()
 
 void Renderer::render(GLFWwindow* window, const ViewSettings& view, const SceneSettings& scene)
 {
+	// Handle dynamic model/HDR loading
+	if (scene.modelChanged) {
+		loadModel(scene.currentModelIndex);
+		const_cast<SceneSettings&>(scene).modelChanged = false;
+	}
+	if (scene.hdrChanged) {
+		loadHDREnvironment(scene.currentHDRIndex);
+		const_cast<SceneSettings&>(scene).hdrChanged = false;
+	}
+
 	const glm::mat4 projectionMatrix = glm::perspectiveFov(glm::radians(view.fov), float(m_framebuffer.width), float(m_framebuffer.height), 1.0f, 1000.0f);
 	const glm::mat4 viewRotationMatrix = glm::eulerAngleXY(glm::radians(view.pitch), glm::radians(view.yaw));
-	const glm::mat4 sceneRotationMatrix = glm::eulerAngleXY(glm::radians(scene.pitch), glm::radians(scene.yaw));
-	const glm::mat4 modelRotation = glm::rotate(glm::mat4{1.0f}, glm::radians(90.0f), glm::vec3{1.0f, 0.0f, 0.0f}); // Rotate 90° around X axis
-	const glm::mat4 scaleMatrix = glm::scale(glm::mat4{1.0f}, glm::vec3{40.0f, 40.0f, 40.0f}); // Scale up 40x to verify
-	const glm::mat4 sceneTransform = sceneRotationMatrix * modelRotation * scaleMatrix;
+	const glm::mat4 sceneRotationMatrix = glm::eulerAngleYX(glm::radians(scene.yaw), glm::radians(scene.pitch));
+	const glm::mat4 sceneTransform = sceneRotationMatrix * m_modelPreRotation * m_modelNormalization;
 	const glm::mat4 viewMatrix = glm::translate(glm::mat4{ 1.0f }, { 0.0f, 0.0f, -view.distance }) * viewRotationMatrix;
 	const glm::vec3 eyePosition = glm::inverse(viewMatrix)[3];
 
@@ -392,46 +335,63 @@ void Renderer::render(GLFWwindow* window, const ViewSettings& view, const SceneS
 
 void Renderer::gui(GLFWwindow* window, ViewSettings& view, SceneSettings& scene)
 {
-	ImGui::Begin("Control Panel");
+	ImGui::Begin("Panel Kontrol");
 	
-	if (ImGui::CollapsingHeader("Rendering Mode", ImGuiTreeNodeFlags_DefaultOpen)) {
-		ImGui::Checkbox("Split-Screen Comparison", &view.splitScreen);
+	if (ImGui::CollapsingHeader("Mode Rendering", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Checkbox("Perbandingan Split-Screen", &view.splitScreen);
 		
 		int debugView = (int)scene.debugView;
-		ImGui::Text("Debug Visualization:");
-		ImGui::RadioButton("None", &debugView, (int)SceneSettings::DebugView::None);
-		ImGui::RadioButton("Albedo Only", &debugView, (int)SceneSettings::DebugView::Albedo);
-		ImGui::RadioButton("Normals Only", &debugView, (int)SceneSettings::DebugView::Normal);
-		ImGui::RadioButton("Metalness Only", &debugView, (int)SceneSettings::DebugView::Metalness);
-		ImGui::RadioButton("Roughness Only", &debugView, (int)SceneSettings::DebugView::Roughness);
+		ImGui::Text("Visualisasi Debug:");
+		ImGui::RadioButton("Tidak Ada", &debugView, (int)SceneSettings::DebugView::None);
+		ImGui::RadioButton("Hanya Albedo", &debugView, (int)SceneSettings::DebugView::Albedo);
+		ImGui::RadioButton("Hanya Normal", &debugView, (int)SceneSettings::DebugView::Normal);
+		ImGui::RadioButton("Hanya Metalness", &debugView, (int)SceneSettings::DebugView::Metalness);
+		ImGui::RadioButton("Hanya Roughness", &debugView, (int)SceneSettings::DebugView::Roughness);
 		scene.debugView = (SceneSettings::DebugView)debugView;
 	}
 
-	if (ImGui::CollapsingHeader("Material Components", ImGuiTreeNodeFlags_DefaultOpen)) {
-		ImGui::Checkbox("Use Albedo Map", &scene.useAlbedo);
-		ImGui::Checkbox("Use Normal Map", &scene.useNormalMap);
-		ImGui::Checkbox("Use Metalness Map", &scene.useMetalness);
-		ImGui::Checkbox("Use Roughness Map", &scene.useRoughness);
+	if (ImGui::CollapsingHeader("Aset Scene", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Text("Model 3D:");
+		for (int i = 0; i < m_availableModels.size(); ++i) {
+			if (ImGui::RadioButton(m_availableModels[i].name, &scene.currentModelIndex, i)) {
+				scene.modelChanged = true;
+			}
+		}
+		
+		ImGui::Separator();
+		ImGui::Text("Lingkungan HDR:");
+		for (int i = 0; i < m_availableHDRs.size(); ++i) {
+			if (ImGui::RadioButton(m_availableHDRs[i].name, &scene.currentHDRIndex, i)) {
+				scene.hdrChanged = true;
+			}
+		}
 	}
 
-	if (ImGui::CollapsingHeader("Light & Exposure", ImGuiTreeNodeFlags_DefaultOpen)) {
-		ImGui::SliderFloat("Skybox Exposure", &scene.exposure, 0.0f, 10.0f);
-		ImGui::SliderFloat("Phong Shininess", &scene.phongShininess, 1.0f, 256.0f);
+	if (ImGui::CollapsingHeader("Komponen Material", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Checkbox("Gunakan Albedo Map", &scene.useAlbedo);
+		ImGui::Checkbox("Gunakan Normal Map", &scene.useNormalMap);
+		ImGui::Checkbox("Gunakan Metalness Map", &scene.useMetalness);
+		ImGui::Checkbox("Gunakan Roughness Map", &scene.useRoughness);
+	}
+
+	if (ImGui::CollapsingHeader("Cahaya & Eksposur", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::SliderFloat("Eksposur Skybox", &scene.exposure, 0.0f, 10.0f);
+		ImGui::SliderFloat("Kilau Phong", &scene.phongShininess, 1.0f, 256.0f);
 		
 		for (int i = 0; i < SceneSettings::NumLights; ++i) {
 			char buf[32];
-			std::sprintf(buf, "Light %d", i + 1);
+			std::sprintf(buf, "Lampu %d", i + 1);
 			if (ImGui::TreeNode(buf)) {
-				ImGui::Checkbox("Enabled", &scene.lights[i].enabled);
+				ImGui::Checkbox("Aktif", &scene.lights[i].enabled);
 				
 				// Separate color and intensity for better HDR control
 				float intensity = glm::length(scene.lights[i].radiance);
 				glm::vec3 color = (intensity > 0.001f) ? (scene.lights[i].radiance / intensity) : glm::vec3(1.0f);
 				
-				if (ImGui::ColorEdit3("Color", &color[0])) {
+				if (ImGui::ColorEdit3("Warna", &color[0])) {
 					scene.lights[i].radiance = color * intensity;
 				}
-				if (ImGui::DragFloat("Intensity", &intensity, 0.1f, 0.0f, 100.0f)) {
+				if (ImGui::DragFloat("Intensitas", &intensity, 0.1f, 0.0f, 100.0f)) {
 					scene.lights[i].radiance = color * intensity;
 				}
 				
@@ -440,7 +400,7 @@ void Renderer::gui(GLFWwindow* window, ViewSettings& view, SceneSettings& scene)
 		}
 	}
 
-	if (ImGui::CollapsingHeader("Texture Preview (PiP)")) {
+	if (ImGui::CollapsingHeader("Pratinjau Tekstur (PiP)")) {
 		float size = 120.0f;
 		if (ImGui::BeginTable("pip_table", 2)) {
 			ImGui::TableNextColumn();
@@ -467,8 +427,8 @@ void Renderer::gui(GLFWwindow* window, ViewSettings& view, SceneSettings& scene)
 
 	// Stats Overlay
 	ImGui::SetNextWindowPos(ImVec2(10, 10));
-	ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove);
-	ImGui::Text("Performance: %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+	ImGui::Begin("Statistik", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove);
+	ImGui::Text("Performa: %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 	ImGui::End();
 
 	// Auto-Labeller
@@ -477,8 +437,8 @@ void Renderer::gui(GLFWwindow* window, ViewSettings& view, SceneSettings& scene)
 		ImVec2 size = ImGui::GetIO().DisplaySize;
 		float splitX = size.x * view.splitPosition;
 		
-		drawList->AddText(ImVec2(20, size.y - 40), IM_COL32(255, 255, 255, 255), "SIDE A: PBR (Cook-Torrance)");
-		drawList->AddText(ImVec2(splitX + 20, size.y - 40), IM_COL32(255, 255, 255, 255), "SIDE B: Classic Phong");
+		drawList->AddText(ImVec2(20, size.y - 40), IM_COL32(255, 255, 255, 255), "SISI A: PBR (Cook-Torrance)");
+		drawList->AddText(ImVec2(splitX + 20, size.y - 40), IM_COL32(255, 255, 255, 255), "SISI B: Phong Klasik");
 	}
 }
 	
@@ -705,5 +665,130 @@ void Renderer::logMessage(GLenum source, GLenum type, GLuint id, GLenum severity
 	}
 }
 #endif
+
+void Renderer::loadModel(int modelIndex)
+{
+	if (modelIndex < 0 || modelIndex >= m_availableModels.size()) return;
+
+	const ModelInfo& model = m_availableModels[modelIndex];
+	std::printf("Loading model: %s\n", model.name);
+
+	// Delete old model if exists
+	if (m_pbrModel.vao != 0) {
+		deleteMeshBuffer(m_pbrModel);
+	}
+	if (m_albedoTexture.id != 0) deleteTexture(m_albedoTexture);
+	if (m_normalTexture.id != 0) deleteTexture(m_normalTexture);
+	if (m_metalnessTexture.id != 0) deleteTexture(m_metalnessTexture);
+	if (m_roughnessTexture.id != 0) deleteTexture(m_roughnessTexture);
+
+	// Load new model
+	std::shared_ptr<Mesh> mesh = Mesh::fromFile(model.meshPath);
+	m_pbrModel = createMeshBuffer(mesh);
+	m_albedoTexture = createTexture(Image::fromFile(model.albedoPath, 3), GL_RGB, GL_SRGB8);
+	m_normalTexture = createTexture(Image::fromFile(model.normalPath, 3), GL_RGB, GL_RGB8);
+	m_metalnessTexture = createTexture(Image::fromFile(model.metalnessPath, 1), GL_RED, GL_R8);
+	m_roughnessTexture = createTexture(Image::fromFile(model.roughnessPath, 1), GL_RED, GL_R8);
+
+	// Calculate normalization matrix: Center and scale to fit a standard volume
+	const glm::vec3 min = mesh->min();
+	const glm::vec3 max = mesh->max();
+	const glm::vec3 center = (min + max) * 0.5f;
+	const glm::vec3 size = max - min;
+	const float maxDim = glm::max(size.x, glm::max(size.y, size.z));
+	const float scale = (maxDim > 0.001f) ? (87.5f / maxDim) : 1.0f; // Normalize to 87.5 units (increased by 75% from 50.0)
+
+	m_modelNormalization = glm::scale(glm::mat4{1.0f}, glm::vec3{scale}) * glm::translate(glm::mat4{1.0f}, -center);
+
+	// Special case: Apply 90-degree X-axis rotation only to the F1 Wheel
+	if (std::string(model.name) == "F1 Wheel") {
+		m_modelPreRotation = glm::rotate(glm::mat4{1.0f}, glm::radians(90.0f), glm::vec3{1.0f, 0.0f, 0.0f});
+	} else {
+		m_modelPreRotation = glm::mat4{1.0f};
+	}
+
+	// Set swizzle mask for single-channel textures
+	GLint swizzleMask[] = { GL_RED, GL_RED, GL_RED, GL_ONE };
+	glTextureParameteriv(m_metalnessTexture.id, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+	glTextureParameteriv(m_roughnessTexture.id, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+}
+
+void Renderer::loadHDREnvironment(int hdrIndex)
+{
+	if (hdrIndex < 0 || hdrIndex >= m_availableHDRs.size()) return;
+
+	const HDRInfo& hdr = m_availableHDRs[hdrIndex];
+	std::printf("Loading HDR environment: %s\n", hdr.name);
+
+	// Delete old environment textures
+	if (m_envTexture.id != 0) deleteTexture(m_envTexture);
+	if (m_irmapTexture.id != 0) deleteTexture(m_irmapTexture);
+
+	// Unfiltered environment cube map (temporary).
+	Texture envTextureUnfiltered = createTexture(GL_TEXTURE_CUBE_MAP, kEnvMapSize, kEnvMapSize, GL_RGBA16F);
+	
+	// Load & convert equirectangular environment map to a cubemap texture.
+	{
+		GLuint equirectToCubeProgram = linkProgram({
+			compileShader("shaders/glsl/equirect2cube_cs.glsl", GL_COMPUTE_SHADER)
+		});
+
+		Texture envTextureEquirect = createTexture(Image::fromFile(hdr.path, 3), GL_RGB, GL_RGB16F, 1);
+
+		glUseProgram(equirectToCubeProgram);
+		glBindTextureUnit(0, envTextureEquirect.id);
+		glBindImageTexture(0, envTextureUnfiltered.id, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
+		glDispatchCompute(envTextureUnfiltered.width/32, envTextureUnfiltered.height/32, 6);
+		
+		glDeleteTextures(1, &envTextureEquirect.id);
+		glDeleteProgram(equirectToCubeProgram);
+	}
+	
+	glGenerateTextureMipmap(envTextureUnfiltered.id);
+	
+	// Compute pre-filtered specular environment map.
+	{
+		GLuint spmapProgram = linkProgram({
+			compileShader("shaders/glsl/spmap_cs.glsl", GL_COMPUTE_SHADER)
+		});
+
+		m_envTexture = createTexture(GL_TEXTURE_CUBE_MAP, kEnvMapSize, kEnvMapSize, GL_RGBA16F);
+
+		// Copy 0th mipmap level into destination environment map.
+		glCopyImageSubData(envTextureUnfiltered.id, GL_TEXTURE_CUBE_MAP, 0, 0, 0, 0,
+			m_envTexture.id, GL_TEXTURE_CUBE_MAP, 0, 0, 0, 0,
+			m_envTexture.width, m_envTexture.height, 6);
+
+		glUseProgram(spmapProgram);
+		glBindTextureUnit(0, envTextureUnfiltered.id);
+
+		// Pre-filter rest of the mip chain.
+		const float deltaRoughness = 1.0f / glm::max(float(m_envTexture.levels-1), 1.0f);
+		for(int level=1, size=kEnvMapSize/2; level<=m_envTexture.levels; ++level, size/=2) {
+			const GLuint numGroups = glm::max(1, size/32);
+			glBindImageTexture(0, m_envTexture.id, level, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
+			glProgramUniform1f(spmapProgram, 0, level * deltaRoughness);
+			glDispatchCompute(numGroups, numGroups, 6);
+		}
+		glDeleteProgram(spmapProgram);
+	}
+
+	glDeleteTextures(1, &envTextureUnfiltered.id);
+
+	// Compute diffuse irradiance cubemap.
+	{
+		GLuint irmapProgram = linkProgram({
+			compileShader("shaders/glsl/irmap_cs.glsl", GL_COMPUTE_SHADER)
+		});
+
+		m_irmapTexture = createTexture(GL_TEXTURE_CUBE_MAP, kIrradianceMapSize, kIrradianceMapSize, GL_RGBA16F, 1);
+
+		glUseProgram(irmapProgram);
+		glBindTextureUnit(0, m_envTexture.id);
+		glBindImageTexture(0, m_irmapTexture.id, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
+		glDispatchCompute(m_irmapTexture.width/32, m_irmapTexture.height/32, 6);
+		glDeleteProgram(irmapProgram);
+	}
+}
 
 } // OpenGL

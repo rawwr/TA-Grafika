@@ -46,6 +46,12 @@ struct SceneSettings
 	DebugView debugView = DebugView::None;
 	float exposure = 1.0f;
 	float phongShininess = 16.0f;
+
+	// Dynamic loading
+	int currentModelIndex = 0;
+	int currentHDRIndex = 0;
+	bool modelChanged = false;
+	bool hdrChanged = false;
 };
 
 class RendererInterface
