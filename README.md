@@ -13,7 +13,7 @@ Versi ini telah dirombak secara besar-besaran untuk memudahkan pengguna:
    * 🔫 Cerberus Gun (Pistol)
    * 💽 Hard Disk Drive (HDD)
 3. **Pilihan Lingkungan HDR**: Ganti suasana pencahayaan dunia secara instan:
-   * 🌳 LM Outdoor
+   * 🌳 Gedung FT Outdoor
    * 🏠 Indoor
    * 🌲 Outdoor 2
 4. **Layar Sambutan & Panduan (Help)**: Terdapat layar pengenalan di awal, dan tombol tanda tanya `(?)` di panel kontrol untuk memunculkan panduan kontrol kapan saja.
