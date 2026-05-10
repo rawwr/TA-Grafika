@@ -83,4 +83,4 @@ Sangat mudah! Anda **tidak perlu** mengetik perintah rumit.
 ##  Manual Book
 Bagi mahasiswa atau publik yang ingin melihat penjelasan akademis lengkap, Anda dapat membaca dan mengunduh file PDF panduannya pada folder `data/MANUAL BOOK GRAFKOM.pdf`.
 
-*Hak Cipta (c) 2017-2018 Michał Siejak (Base Code), Dimodifikasi dan Dikembangkan lebih lanjut untuk Tugas Akhir Grafika Komputer (Revisi).*
+*Hak Cipta (c) 2017-2018 Michał Siejak (Base Code), Dimodifikasi dan Dikembangkan lebih lanjut untuk Tugas Akhir Grafika Komputer.*
