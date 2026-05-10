@@ -47,6 +47,8 @@ Renderer::Renderer()
 	, m_phongProgram(0)
 	, m_transformUB(0)
 	, m_shadingUB(0)
+	, m_loadIndex(0)
+	, m_isTerminating(false)
 {
 }
 
@@ -101,6 +103,11 @@ GLFWwindow *Renderer::initialize(int width, int height, int maxSamples) {
 
 void Renderer::shutdown()
 {
+	m_isTerminating = true;
+	if (m_loadingThread.joinable()) {
+		m_loadingThread.join();
+	}
+
 	if(m_framebuffer.id != m_resolveFramebuffer.id) {
 		deleteFrameBuffer(m_resolveFramebuffer);
 	}
@@ -177,30 +184,19 @@ void Renderer::setup()
 		compileShader("shaders/glsl/phong_fs.glsl", GL_FRAGMENT_SHADER)
 	});
 
-	// Pre-load all assets
-	for(int i=0; i < (int)m_availableModels.size(); ++i) {
-		loadModel(i);
-	}
-	for(int i=0; i < (int)m_availableHDRs.size(); ++i) {
-		loadHDREnvironment(i);
-	}
-
+	// Pre-load constant LUT
 	// Compute Cook-Torrance BRDF 2D LUT for split-sum approximation.
 	{
-		std::printf("Computing Cook-Torrance BRDF LUT...\n");
-		GLuint spBRDFProgram = linkProgram({
-			compileShader("shaders/glsl/spbrdf_cs.glsl", GL_COMPUTE_SHADER)
-		});
-
+		GLuint spbrdfProgram = linkProgram({ compileShader("shaders/glsl/spbrdf_cs.glsl", GL_COMPUTE_SHADER) });
 		m_spBRDF_LUT = createTexture(GL_TEXTURE_2D, kBRDF_LUT_Size, kBRDF_LUT_Size, GL_RG16F, 1);
-		glTextureParameteri(m_spBRDF_LUT.id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTextureParameteri(m_spBRDF_LUT.id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-		glUseProgram(spBRDFProgram);
+		glUseProgram(spbrdfProgram);
 		glBindImageTexture(0, m_spBRDF_LUT.id, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RG16F);
-		glDispatchCompute(m_spBRDF_LUT.width/32, m_spBRDF_LUT.height/32, 1);
-		glDeleteProgram(spBRDFProgram);
+		glDispatchCompute(kBRDF_LUT_Size / 32, kBRDF_LUT_Size / 32, 1);
+		glDeleteProgram(spbrdfProgram);
 	}
+
+	// Start background loading
+	startAsyncLoad();
 
 	glFinish();
 	std::printf("Initialization complete.\n");
@@ -208,6 +204,15 @@ void Renderer::setup()
 
 void Renderer::render(GLFWwindow* window, const ViewSettings& view, const SceneSettings& scene)
 {
+	const_cast<Renderer*>(this)->processAsyncLoading(const_cast<SceneSettings&>(scene));
+
+	if (scene.isLoading) {
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glClearColor(0.1f, 0.1f, 0.12f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		return;
+	}
+
 	const ModelInfo& currentModel = m_availableModels[scene.currentModelIndex];
 	const HDRInfo& currentHDR = m_availableHDRs[scene.currentHDRIndex];
 
@@ -326,6 +331,29 @@ void Renderer::render(GLFWwindow* window, const ViewSettings& view, const SceneS
 
 void Renderer::gui(GLFWwindow* window, ViewSettings& view, SceneSettings& scene)
 {
+	if (scene.isLoading) {
+		ImGui::SetNextWindowPos(ImVec2(0, 0));
+		ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+		ImGui::Begin("Loading", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoBackground);
+		
+		ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+		ImGui::SetCursorPos(ImVec2(center.x - 200, center.y - 50));
+		
+		ImGui::BeginGroup();
+		ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "MEMUAT ASET PBR...");
+		ImGui::Dummy(ImVec2(0, 10));
+		
+		ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.2f, 0.5f, 0.9f, 1.0f));
+		ImGui::ProgressBar(scene.loadingProgress, ImVec2(400, 30), "");
+		ImGui::PopStyleColor();
+		
+		ImGui::Text("%s", scene.loadingStatus.c_str());
+		ImGui::EndGroup();
+		
+		ImGui::End();
+		return;
+	}
+
 	const ModelInfo& currentModel = m_availableModels[scene.currentModelIndex];
 
 	// ============================================================
@@ -585,7 +613,13 @@ void Renderer::loadHDREnvironment(int hdrIndex)
 	Texture envTextureUnfiltered = createTexture(GL_TEXTURE_CUBE_MAP, kEnvMapSize, kEnvMapSize, GL_RGBA16F);
 
 	// Convert equirectangular to cubemap
-	Texture envTextureEquirect = createTexture(Image::fromFile(info.path, 3), GL_RGB, GL_RGB16F, 1);
+	Texture envTextureEquirect;
+	if (info.cpuEquirect) {
+		envTextureEquirect = createTexture(info.cpuEquirect, GL_RGB, GL_RGB16F, 1);
+	}
+	else {
+		envTextureEquirect = createTexture(Image::fromFile(info.path, 3), GL_RGB, GL_RGB16F, 1);
+	}
 	glUseProgram(equirectToCubeProgram);
 	glBindTextureUnit(0, envTextureEquirect.id);
 	glBindImageTexture(0, envTextureUnfiltered.id, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
@@ -619,6 +653,100 @@ void Renderer::loadHDREnvironment(int hdrIndex)
 	glDeleteProgram(equirectToCubeProgram);
 	glDeleteProgram(spmapProgram);
 	glDeleteProgram(irmapProgram);
+}
+
+void Renderer::startAsyncLoad()
+{
+	m_isTerminating = false;
+	m_loadIndex = 0;
+
+	m_loadingThread = std::thread([this]() {
+		for (auto& info : m_availableModels) {
+			if (m_isTerminating) return;
+			info.cpuMesh = Mesh::fromFile(info.meshPath);
+			info.cpuAlbedo = Image::fromFile(info.albedoPath, 3);
+			info.cpuNormal = Image::fromFile(info.normalPath, 3);
+			info.cpuMetalness = Image::fromFile(info.metalnessPath, 1);
+			info.cpuRoughness = Image::fromFile(info.roughnessPath, 1);
+			info.cpuReady = true;
+		}
+		for (auto& info : m_availableHDRs) {
+			if (m_isTerminating) return;
+			info.cpuEquirect = Image::fromFile(info.path, 3);
+			info.cpuReady = true;
+		}
+	});
+}
+
+void Renderer::processAsyncLoading(SceneSettings& scene)
+{
+	if (!scene.isLoading) return;
+
+	int numModels = (int)m_availableModels.size();
+	int numHDRs = (int)m_availableHDRs.size();
+	int totalTasks = numModels + numHDRs;
+
+	if (m_loadIndex < numModels) {
+		auto& info = m_availableModels[m_loadIndex];
+		if (info.cpuReady && !info.isLoaded) {
+			// Upload to GPU (Main Thread)
+			info.mesh = createMeshBuffer(info.cpuMesh);
+			info.albedo = createTexture(info.cpuAlbedo, GL_RGB, GL_SRGB8);
+			info.normal = createTexture(info.cpuNormal, GL_RGB, GL_RGB8);
+			info.metalness = createTexture(info.cpuMetalness, GL_RED, GL_R8);
+			info.roughness = createTexture(info.cpuRoughness, GL_RED, GL_R8);
+
+			GLint swizzleMask[] = { GL_RED, GL_RED, GL_RED, GL_ONE };
+			glTextureParameteriv(info.metalness.id, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+			glTextureParameteriv(info.roughness.id, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+
+			glm::vec3 min = info.cpuMesh->min();
+			glm::vec3 max = info.cpuMesh->max();
+			glm::vec3 size = max - min;
+			glm::vec3 center = (min + max) * 0.5f;
+			float maxDim = std::max({ size.x, size.y, size.z });
+			float scale = (1.0f / maxDim) * info.scale;
+			info.normalization = glm::scale(glm::mat4(1.0f), glm::vec3(scale)) * glm::translate(glm::mat4(1.0f), -center);
+
+			if (std::string(info.name).find("Wheel") != std::string::npos) {
+				info.preRotation = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+			}
+			else {
+				info.preRotation = glm::mat4(1.0f);
+			}
+
+			info.isLoaded = true;
+			info.cpuMesh.reset();
+			info.cpuAlbedo.reset();
+			info.cpuNormal.reset();
+			info.cpuMetalness.reset();
+			info.cpuRoughness.reset();
+			m_loadIndex++;
+		}
+	}
+	else if (m_loadIndex < totalTasks) {
+		int hdrIdx = m_loadIndex - numModels;
+		auto& info = m_availableHDRs[hdrIdx];
+		if (info.cpuReady && !info.isLoaded) {
+			// Compute-heavy HDR tasks remain on main thread for GL context
+			loadHDREnvironment(hdrIdx);
+			info.isLoaded = true;
+			info.cpuEquirect.reset();
+			m_loadIndex++;
+		}
+	}
+
+	scene.loadingProgress = (float)m_loadIndex / totalTasks;
+	if (m_loadIndex >= totalTasks) {
+		scene.isLoading = false;
+		scene.loadingStatus = "Siap";
+	}
+	else {
+		if (m_loadIndex < numModels)
+			scene.loadingStatus = "Memproses Model: " + std::string(m_availableModels[m_loadIndex].name);
+		else
+			scene.loadingStatus = "Memproses HDR: " + std::string(m_availableHDRs[m_loadIndex - numModels].name);
+	}
 }
 
 GLuint Renderer::compileShader(const std::string &filename, GLenum type) {

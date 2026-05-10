@@ -7,9 +7,12 @@
 
 #pragma once
 
-
 #include <string>
 #include <vector>
+#include <memory>
+#include <thread>
+#include <atomic>
+#include <future>
 #include <glad/glad.h>
 
 #include "common/renderer.hpp"
@@ -18,7 +21,7 @@ namespace OpenGL {
 
 struct MeshBuffer
 {
-	MeshBuffer() : vbo(0), ibo(0), vao(0) {}
+	MeshBuffer() : vbo(0), ibo(0), vao(0), numElements(0) {}
 	GLuint vbo, ibo, vao;
 	GLuint numElements;
 };
@@ -75,6 +78,10 @@ private:
 	void loadModel(int modelIndex);
 	void loadHDREnvironment(int hdrIndex);
 
+	// Async Loading System
+	void processAsyncLoading(SceneSettings& scene);
+	void startAsyncLoad();
+
 #if _DEBUG
 	static void logMessage(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
 #endif
@@ -123,6 +130,12 @@ private:
 		Texture roughness;
 		glm::mat4 normalization;
 		glm::mat4 preRotation;
+
+		// Async State
+		bool isLoaded = false;
+		bool cpuReady = false;
+		std::shared_ptr<class Mesh> cpuMesh;
+		std::shared_ptr<class Image> cpuAlbedo, cpuNormal, cpuMetalness, cpuRoughness;
 	};
 	struct HDRInfo {
 		const char* name;
@@ -131,9 +144,18 @@ private:
 		// GPU Resources
 		Texture env;
 		Texture irmap;
+
+		// Async State
+		bool isLoaded = false;
+		bool cpuReady = false;
+		std::shared_ptr<class Image> cpuEquirect;
 	};
 	std::vector<ModelInfo> m_availableModels;
 	std::vector<HDRInfo> m_availableHDRs;
+
+	std::thread m_loadingThread;
+	std::atomic<int> m_loadIndex;
+	std::atomic<bool> m_isTerminating;
 };
 
 } // OpenGL

@@ -4,6 +4,7 @@
  */
 
 #pragma once
+#include <string>
 #include <glm/mat4x4.hpp>
 
 struct GLFWwindow;
@@ -66,6 +67,11 @@ struct SceneSettings
 	bool hdrChanged = false;
 	int currentModelIndex = 0;
 	int currentHDRIndex = 0;
+
+	// Async loading state
+	bool isLoading = true;
+	float loadingProgress = 0.0f;
+	std::string loadingStatus = "Initializing...";
 
 	// UI state flags
 	bool showIntro = true;
