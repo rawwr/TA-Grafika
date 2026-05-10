@@ -28,15 +28,9 @@ Versi ini telah dirombak secara besar-besaran untuk memudahkan pengguna:
 
 Proyek ini mengandung file 3D dan tekstur gambar berkualitas sangat tinggi (ukuran mencapai ~300 MB). File-file berat ini disimpan khusus menggunakan **Git LFS (Large File Storage)**. 
 
-Ada dua cara untuk mengunduhnya:
+Cara untuk mengunduhnya:
 
-### Cara 1: Download Langsung (Paling Mudah untuk Orang Awam)
-1. Pergi ke bagian atas halaman GitHub ini.
-2. Klik tombol hijau bertuliskan **Code**.
-3. Pilih **Download ZIP**.
-*(Catatan: GitHub akan otomatis memasukkan file besar LFS ke dalam ZIP, sehingga Anda tinggal mengekstraknya tanpa perlu alat tambahan).*
-
-### Cara 2: Menggunakan Terminal (Untuk Programmer)
+###  Menggunakan Terminal (Untuk Programmer)
 Pastikan Anda sudah menginstal **Git** dan **Git LFS** di komputer Anda. Buka terminal dan ketik:
 ```bash
 # Wajib install Git LFS dulu jika belum punya
