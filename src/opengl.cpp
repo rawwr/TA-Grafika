@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <stdexcept>
+#include <algorithm>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -39,11 +40,15 @@ struct ShadingUB {
 };
 
 Renderer::Renderer()
-    : m_emptyVAO(0), m_tonemapProgram(0), m_skyboxProgram(0), m_pbrProgram(0),
-      m_phongProgram(0), m_transformUB(0), m_shadingUB(0),
-      m_currentModel(SceneSettings::ModelType::Wheel), m_albedoTexture(nullptr),
-      m_normalTexture(nullptr), m_metalnessTexture(nullptr),
-      m_roughnessTexture(nullptr) {}
+	: m_emptyVAO(0)
+	, m_tonemapProgram(0)
+	, m_skyboxProgram(0)
+	, m_pbrProgram(0)
+	, m_phongProgram(0)
+	, m_transformUB(0)
+	, m_shadingUB(0)
+{
+}
 
 GLFWwindow *Renderer::initialize(int width, int height, int maxSamples) {
   glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
@@ -58,9 +63,7 @@ GLFWwindow *Renderer::initialize(int width, int height, int maxSamples) {
   glfwWindowHint(GLFW_STENCIL_BITS, 0);
   glfwWindowHint(GLFW_SAMPLES, 0);
 
-  GLFWwindow *window =
-      glfwCreateWindow(width, height, "Physically Based Rendering (OpenGL 4.5)",
-                       nullptr, nullptr);
+  GLFWwindow* window = glfwCreateWindow(width, height, "Physically Based Rendering - Demo Pembelajaran", nullptr, nullptr);
   if (!window) {
     throw std::runtime_error("Failed to create OpenGL context");
   }
@@ -96,309 +99,187 @@ GLFWwindow *Renderer::initialize(int width, int height, int maxSamples) {
   return window;
 }
 
-void Renderer::shutdown() {
-  if (m_framebuffer.id != m_resolveFramebuffer.id) {
-    deleteFrameBuffer(m_resolveFramebuffer);
-  }
-  deleteFrameBuffer(m_framebuffer);
+void Renderer::shutdown()
+{
+	if(m_framebuffer.id != m_resolveFramebuffer.id) {
+		deleteFrameBuffer(m_resolveFramebuffer);
+	}
+	deleteFrameBuffer(m_framebuffer);
 
-  glDeleteVertexArrays(1, &m_emptyVAO);
+	glDeleteVertexArrays(1, &m_emptyVAO);
 
-  glDeleteProgram(m_tonemapProgram);
-  glDeleteProgram(m_skyboxProgram);
-  glDeleteProgram(m_pbrProgram);
-  glDeleteProgram(m_phongProgram);
+	glDeleteProgram(m_tonemapProgram);
+	glDeleteProgram(m_skyboxProgram);
+	glDeleteProgram(m_pbrProgram);
+	glDeleteProgram(m_phongProgram);
 
-  for (int i = 0; i < 3; ++i) {
-    deleteTexture(m_envTextures[i]);
-    deleteTexture(m_irmapTextures[i]);
-  }
-  deleteTexture(m_spBRDF_LUT);
+	deleteTexture(m_spBRDF_LUT);
 
-  // Delete all per-model textures
-  deleteTexture(m_wheelAlbedo);
-  deleteTexture(m_wheelNormal);
-  deleteTexture(m_wheelMetalness);
-  deleteTexture(m_wheelRoughness);
-  deleteTexture(m_cerberusAlbedo);
-  deleteTexture(m_cerberusNormal);
-  deleteTexture(m_cerberusMetalness);
-  deleteTexture(m_cerberusRoughness);
-  deleteTexture(m_hddAlbedo);
-  deleteTexture(m_hddNormal);
-  deleteTexture(m_hddMetalness);
-  deleteTexture(m_hddRoughness);
-
-  // Delete all mesh buffers
-  deleteMeshBuffer(m_wheelModel);
-  deleteMeshBuffer(m_cerberusModel);
-  deleteMeshBuffer(m_hddModel);
+	for(auto& m : m_availableModels) {
+		deleteMeshBuffer(m.mesh);
+		deleteTexture(m.albedo);
+		deleteTexture(m.normal);
+		deleteTexture(m.metalness);
+		deleteTexture(m.roughness);
+	}
+	for(auto& h : m_availableHDRs) {
+		deleteTexture(h.env);
+		deleteTexture(h.irmap);
+	}
 }
 
-void Renderer::setup() {
-  // Parameters
-  static constexpr int kEnvMapSize = 1024;
-  static constexpr int kIrradianceMapSize = 32;
-  static constexpr int kBRDF_LUT_Size = 256;
+void Renderer::setup()
+{
 
-  // Set global OpenGL state.
-  glEnable(GL_CULL_FACE);
-  glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
-  glFrontFace(GL_CCW);
+	// Set global OpenGL state.
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+	glFrontFace(GL_CCW);
 
-  // Create empty VAO for rendering full screen triangle.
-  glCreateVertexArrays(1, &m_emptyVAO);
+	// Create empty VAO for rendering full screen triangle.
+	glCreateVertexArrays(1, &m_emptyVAO);
 
-  // Create uniform buffers.
-  m_transformUB = createUniformBuffer<TransformUB>();
-  m_shadingUB = createUniformBuffer<ShadingUB>();
+	// Create uniform buffers.
+	m_transformUB = createUniformBuffer<TransformUB>();
+	m_shadingUB = createUniformBuffer<ShadingUB>();
 
-  // Load assets & compile/link rendering programs.
-  m_tonemapProgram = linkProgram(
-      {compileShader("shaders/glsl/tonemap_vs.glsl", GL_VERTEX_SHADER),
-       compileShader("shaders/glsl/tonemap_fs.glsl", GL_FRAGMENT_SHADER)});
+	// Initialize available models and HDRs
+	m_availableModels = {
+		{"F1 Wheel", "meshes/F1 Wheel.fbx", "textures/F1 Wheel_Albedo.png", "textures/F1 Wheel_Normal.png", "textures/F1 Wheel_Metalness.png", "textures/F1 Wheel_Roughness.png", 80.0f},
+		{"Cerberus Gun", "meshes/cerberus.fbx", "textures/cerberus_A.png", "textures/cerberus_N.png", "textures/cerberus_M.png", "textures/cerberus_R.png", 90.0f},
+		{"HDD", "meshes/working.obj", "textures/working_A.png", "textures/working_N.png", "textures/working_M.png", "textures/working_R.png", 60.0f}
+	};
+	m_availableHDRs = {
+		{"Gedung FT Outdoor", "environment.hdr"},
+		{"Indoor", "indoor.hdr"},
+		{"Outdoor 2", "old.environment.hdr"}
+	};
 
-  m_skybox = createMeshBuffer(Mesh::fromFile("meshes/skybox.obj"));
-  m_skyboxProgram = linkProgram(
-      {compileShader("shaders/glsl/skybox_vs.glsl", GL_VERTEX_SHADER),
-       compileShader("shaders/glsl/skybox_fs.glsl", GL_FRAGMENT_SHADER)});
+	// Load assets & compile/link rendering programs.
+	m_tonemapProgram = linkProgram({
+		compileShader("shaders/glsl/tonemap_vs.glsl", GL_VERTEX_SHADER),
+		compileShader("shaders/glsl/tonemap_fs.glsl", GL_FRAGMENT_SHADER)
+	});
 
-  // --- Load all 3 models ---
-  std::printf("Loading F1 Wheel model...\n");
-  m_wheelModel = createMeshBuffer(Mesh::fromFile("meshes/F1 Wheel.fbx"));
-  std::printf("Loading Cerberus model...\n");
-  m_cerberusModel = createMeshBuffer(Mesh::fromFile("meshes/cerberus.fbx"));
-  std::printf("Loading HDD model...\n");
-  m_hddModel = createMeshBuffer(Mesh::fromFile("meshes/working.obj"));
+	m_skybox = createMeshBuffer(Mesh::fromFile("meshes/skybox.obj"));
+	m_skyboxProgram = linkProgram({
+		compileShader("shaders/glsl/skybox_vs.glsl", GL_VERTEX_SHADER),
+		compileShader("shaders/glsl/skybox_fs.glsl", GL_FRAGMENT_SHADER)
+	});
 
-  m_pbrProgram = linkProgram(
-      {compileShader("shaders/glsl/pbr_vs.glsl", GL_VERTEX_SHADER),
-       compileShader("shaders/glsl/pbr_fs.glsl", GL_FRAGMENT_SHADER)});
+	m_pbrProgram = linkProgram({
+		compileShader("shaders/glsl/pbr_vs.glsl", GL_VERTEX_SHADER),
+		compileShader("shaders/glsl/pbr_fs.glsl", GL_FRAGMENT_SHADER)
+	});
 
-  m_phongProgram = linkProgram(
-      {compileShader("shaders/glsl/pbr_vs.glsl", GL_VERTEX_SHADER),
-       compileShader("shaders/glsl/phong_fs.glsl", GL_FRAGMENT_SHADER)});
+	m_phongProgram = linkProgram({
+		compileShader("shaders/glsl/pbr_vs.glsl", GL_VERTEX_SHADER),
+		compileShader("shaders/glsl/phong_fs.glsl", GL_FRAGMENT_SHADER)
+	});
 
-  // --- Load textures for Wheel ---
-  std::printf("Loading Wheel textures...\n");
-  m_wheelAlbedo = createTexture(
-      Image::fromFile("textures/F1 Wheel_Albedo.png", 3), GL_RGB, GL_SRGB8);
-  m_wheelNormal = createTexture(
-      Image::fromFile("textures/F1 Wheel_Normal.png", 3), GL_RGB, GL_RGB8);
-  m_wheelMetalness = createTexture(
-      Image::fromFile("textures/F1 Wheel_Metalness.png", 1), GL_RED, GL_R8);
-  m_wheelRoughness = createTexture(
-      Image::fromFile("textures/F1 Wheel_Roughness.png", 1), GL_RED, GL_R8);
+	// Pre-load all assets
+	for(int i=0; i < (int)m_availableModels.size(); ++i) {
+		loadModel(i);
+	}
+	for(int i=0; i < (int)m_availableHDRs.size(); ++i) {
+		loadHDREnvironment(i);
+	}
 
-  // --- Load textures for Cerberus ---
-  std::printf("Loading Cerberus textures...\n");
-  m_cerberusAlbedo = createTexture(
-      Image::fromFile("textures/cerberus_A.png", 3), GL_RGB, GL_SRGB8);
-  m_cerberusNormal = createTexture(
-      Image::fromFile("textures/cerberus_N.png", 3), GL_RGB, GL_RGB8);
-  m_cerberusMetalness = createTexture(
-      Image::fromFile("textures/cerberus_M.png", 1), GL_RED, GL_R8);
-  m_cerberusRoughness = createTexture(
-      Image::fromFile("textures/cerberus_R.png", 1), GL_RED, GL_R8);
+	// Compute Cook-Torrance BRDF 2D LUT for split-sum approximation.
+	{
+		std::printf("Computing Cook-Torrance BRDF LUT...\n");
+		GLuint spBRDFProgram = linkProgram({
+			compileShader("shaders/glsl/spbrdf_cs.glsl", GL_COMPUTE_SHADER)
+		});
 
-  // --- Load textures for HDD ---
-  std::printf("Loading HDD textures...\n");
-  m_hddAlbedo = createTexture(Image::fromFile("textures/working_A.png", 3),
-                              GL_RGB, GL_SRGB8);
-  m_hddNormal = createTexture(Image::fromFile("textures/working_N.png", 3),
-                              GL_RGB, GL_RGB8);
-  m_hddMetalness = createTexture(Image::fromFile("textures/working_M.png", 1),
-                                 GL_RED, GL_R8);
-  m_hddRoughness = createTexture(Image::fromFile("textures/working_R.png", 1),
-                                 GL_RED, GL_R8);
+		m_spBRDF_LUT = createTexture(GL_TEXTURE_2D, kBRDF_LUT_Size, kBRDF_LUT_Size, GL_RG16F, 1);
+		glTextureParameteri(m_spBRDF_LUT.id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTextureParameteri(m_spBRDF_LUT.id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-  // Set swizzle mask for single-channel textures.
-  GLint swizzleMask[] = {GL_RED, GL_RED, GL_RED, GL_ONE};
-  glTextureParameteriv(m_wheelMetalness.id, GL_TEXTURE_SWIZZLE_RGBA,
-                       swizzleMask);
-  glTextureParameteriv(m_wheelRoughness.id, GL_TEXTURE_SWIZZLE_RGBA,
-                       swizzleMask);
-  glTextureParameteriv(m_cerberusMetalness.id, GL_TEXTURE_SWIZZLE_RGBA,
-                       swizzleMask);
-  glTextureParameteriv(m_cerberusRoughness.id, GL_TEXTURE_SWIZZLE_RGBA,
-                       swizzleMask);
-  glTextureParameteriv(m_hddMetalness.id, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
-  glTextureParameteriv(m_hddRoughness.id, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+		glUseProgram(spBRDFProgram);
+		glBindImageTexture(0, m_spBRDF_LUT.id, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RG16F);
+		glDispatchCompute(m_spBRDF_LUT.width/32, m_spBRDF_LUT.height/32, 1);
+		glDeleteProgram(spBRDFProgram);
+	}
 
-  // Default: Wheel active
-  switchModel(SceneSettings::ModelType::Wheel);
-
-  const char* envFiles[3] = {"environment.hdr", "indoor.hdr", "old.environment.hdr"};
-  
-  std::printf("Compiling compute shaders for HDR processing...\n");
-  GLuint equirectToCubeProgram = linkProgram({compileShader("shaders/glsl/equirect2cube_cs.glsl", GL_COMPUTE_SHADER)});
-  GLuint spmapProgram = linkProgram({compileShader("shaders/glsl/spmap_cs.glsl", GL_COMPUTE_SHADER)});
-  GLuint irmapProgram = linkProgram({compileShader("shaders/glsl/irmap_cs.glsl", GL_COMPUTE_SHADER)});
-
-  for (int i = 0; i < 3; ++i) {
-    std::printf("Processing environment map: %s\n", envFiles[i]);
-    
-    // Unfiltered environment cube map (temporary).
-    Texture envTextureUnfiltered = createTexture(GL_TEXTURE_CUBE_MAP, kEnvMapSize, kEnvMapSize, GL_RGBA16F);
-
-    // Convert equirectangular to cubemap
-    Texture envTextureEquirect = createTexture(Image::fromFile(envFiles[i], 3), GL_RGB, GL_RGB16F, 1);
-    glUseProgram(equirectToCubeProgram);
-    glBindTextureUnit(0, envTextureEquirect.id);
-    glBindImageTexture(0, envTextureUnfiltered.id, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
-    glDispatchCompute(envTextureUnfiltered.width / 32, envTextureUnfiltered.height / 32, 6);
-    glDeleteTextures(1, &envTextureEquirect.id);
-    glGenerateTextureMipmap(envTextureUnfiltered.id);
-
-    // Pre-filtering specular environment map
-    m_envTextures[i] = createTexture(GL_TEXTURE_CUBE_MAP, kEnvMapSize, kEnvMapSize, GL_RGBA16F);
-    glCopyImageSubData(envTextureUnfiltered.id, GL_TEXTURE_CUBE_MAP, 0, 0, 0, 0,
-                       m_envTextures[i].id, GL_TEXTURE_CUBE_MAP, 0, 0, 0, 0,
-                       m_envTextures[i].width, m_envTextures[i].height, 6);
-    glUseProgram(spmapProgram);
-    glBindTextureUnit(0, envTextureUnfiltered.id);
-    const float deltaRoughness = 1.0f / glm::max(float(m_envTextures[i].levels - 1), 1.0f);
-    for (int level = 1, size = kEnvMapSize / 2; level <= m_envTextures[i].levels; ++level, size /= 2) {
-      const GLuint numGroups = glm::max(1, size / 32);
-      glBindImageTexture(0, m_envTextures[i].id, level, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
-      glProgramUniform1f(spmapProgram, 0, level * deltaRoughness);
-      glDispatchCompute(numGroups, numGroups, 6);
-    }
-    glDeleteTextures(1, &envTextureUnfiltered.id);
-
-    // Compute diffuse irradiance cubemap
-    m_irmapTextures[i] = createTexture(GL_TEXTURE_CUBE_MAP, kIrradianceMapSize, kIrradianceMapSize, GL_RGBA16F, 1);
-    glUseProgram(irmapProgram);
-    glBindTextureUnit(0, m_envTextures[i].id);
-    glBindImageTexture(0, m_irmapTextures[i].id, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
-    glDispatchCompute(m_irmapTextures[i].width / 32, m_irmapTextures[i].height / 32, 6);
-  }
-
-  glDeleteProgram(equirectToCubeProgram);
-  glDeleteProgram(spmapProgram);
-  glDeleteProgram(irmapProgram);
-
-  switchEnv(SceneSettings::EnvType::Outdoor1);
-
-  // Compute Cook-Torrance BRDF 2D LUT for split-sum approximation.
-  {
-    std::printf("Computing Cook-Torrance BRDF LUT...\n");
-    GLuint spBRDFProgram = linkProgram(
-        {compileShader("shaders/glsl/spbrdf_cs.glsl", GL_COMPUTE_SHADER)});
-
-    m_spBRDF_LUT = createTexture(GL_TEXTURE_2D, kBRDF_LUT_Size, kBRDF_LUT_Size,
-                                 GL_RG16F, 1);
-    glTextureParameteri(m_spBRDF_LUT.id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTextureParameteri(m_spBRDF_LUT.id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    glUseProgram(spBRDFProgram);
-    glBindImageTexture(0, m_spBRDF_LUT.id, 0, GL_FALSE, 0, GL_WRITE_ONLY,
-                       GL_RG16F);
-    glDispatchCompute(m_spBRDF_LUT.width / 32, m_spBRDF_LUT.height / 32, 1);
-    glDeleteProgram(spBRDFProgram);
-  }
-
-  glFinish();
-  std::printf("Initialization complete.\n");
+	glFinish();
+	std::printf("Initialization complete.\n");
 }
 
-void Renderer::render(GLFWwindow *window, const ViewSettings &view,
-                      const SceneSettings &scene) {
-  const glm::mat4 projectionMatrix =
-      glm::perspectiveFov(glm::radians(view.fov), float(m_framebuffer.width),
-                          float(m_framebuffer.height), 0.01f, 10000.0f);
-  const glm::mat4 viewRotationMatrix =
-      glm::eulerAngleXY(glm::radians(view.pitch), glm::radians(view.yaw));
-  const glm::mat4 sceneRotationMatrix =
-      glm::eulerAngleXY(glm::radians(scene.pitch), glm::radians(scene.yaw));
-  const glm::mat4 modelRotation =
-      glm::rotate(glm::mat4{1.0f}, glm::radians(90.0f),
-                  glm::vec3{1.0f, 0.0f, 0.0f}); // Rotate 90° around X axis
+void Renderer::render(GLFWwindow* window, const ViewSettings& view, const SceneSettings& scene)
+{
+	const ModelInfo& currentModel = m_availableModels[scene.currentModelIndex];
+	const HDRInfo& currentHDR = m_availableHDRs[scene.currentHDRIndex];
 
-  // Scale per-model agar semua model tampil proporsional di viewport
-  float modelScale = 40.0f; // Default untuk F1 Wheel (FBX unit kecil ~2-3 unit)
-  if (m_currentModel == SceneSettings::ModelType::Cerberus)
-    modelScale = 8.0f; // Cerberus FBX — diperkecil agar muat di viewport
-  else if (m_currentModel == SceneSettings::ModelType::HDD)
-    modelScale = 0.5f; // HDD working.obj — vertex ~100 unit, skala lebih besar
+	const glm::mat4 projectionMatrix = glm::perspectiveFov(glm::radians(view.fov), float(m_framebuffer.width), float(m_framebuffer.height), 0.01f, 10000.0f);
+	const glm::mat4 viewRotationMatrix = glm::eulerAngleYX(glm::radians(view.yaw), glm::radians(view.pitch));
+	const glm::mat4 sceneRotationMatrix = glm::eulerAngleYX(glm::radians(scene.yaw), glm::radians(scene.pitch));
 
-  const glm::mat4 scaleMatrix =
-      glm::scale(glm::mat4{1.0f}, glm::vec3{modelScale});
-  const glm::mat4 sceneTransform =
-      sceneRotationMatrix * modelRotation * scaleMatrix;
-  const glm::mat4 viewMatrix =
-      glm::translate(glm::mat4{1.0f}, {0.0f, 0.0f, -view.distance}) *
-      viewRotationMatrix;
-  const glm::vec3 eyePosition = glm::inverse(viewMatrix)[3];
+	const glm::mat4 sceneTransform = sceneRotationMatrix * currentModel.preRotation * currentModel.normalization;
+	const glm::mat4 viewMatrix = glm::translate(glm::mat4{ 1.0f }, { 0.0f, 0.0f, -view.distance }) * viewRotationMatrix;
+	const glm::vec3 eyePosition = glm::inverse(viewMatrix)[3];
 
-  // Update transform uniform buffer.
-  {
-    TransformUB transformUniforms;
-    transformUniforms.viewProjectionMatrix = projectionMatrix * viewMatrix;
-    transformUniforms.skyProjectionMatrix =
-        projectionMatrix * viewRotationMatrix;
-    transformUniforms.sceneRotationMatrix = sceneTransform;
-    glNamedBufferSubData(m_transformUB, 0, sizeof(TransformUB),
-                         &transformUniforms);
-  }
+	// Update transform uniform buffer.
+	{
+		TransformUB transformUniforms;
+		transformUniforms.viewProjectionMatrix = projectionMatrix * viewMatrix;
+		transformUniforms.skyProjectionMatrix = projectionMatrix * viewRotationMatrix;
+		transformUniforms.sceneRotationMatrix = sceneTransform;
+		glNamedBufferSubData(m_transformUB, 0, sizeof(TransformUB), &transformUniforms);
+	}
 
-  // Update shading uniform buffer.
-  {
-    ShadingUB shadingUniforms;
-    shadingUniforms.eyePosition = glm::vec4(eyePosition, 0.0f);
-    for (int i = 0; i < SceneSettings::NumLights; ++i) {
-      const SceneSettings::Light &light = scene.lights[i];
-      shadingUniforms.lights[i].direction = glm::vec4{light.direction, 0.0f};
-      if (light.enabled) {
-        shadingUniforms.lights[i].radiance = glm::vec4{light.radiance, 0.0f};
-      } else {
-        shadingUniforms.lights[i].radiance = glm::vec4{};
-      }
-    }
-    shadingUniforms.flags = glm::vec4(
-        scene.useAlbedo ? 1.0f : 0.0f, scene.useNormalMap ? 1.0f : 0.0f,
-        scene.useMetalness ? 1.0f : 0.0f, scene.useRoughness ? 1.0f : 0.0f);
-    shadingUniforms.extra =
-        glm::vec4((float)scene.debugView, scene.phongShininess, 0.0f, 0.0f);
-    glNamedBufferSubData(m_shadingUB, 0, sizeof(ShadingUB), &shadingUniforms);
-  }
+	// Update shading uniform buffer.
+	{
+		ShadingUB shadingUniforms;
+		shadingUniforms.eyePosition = glm::vec4(eyePosition, 0.0f);
+		for (int i = 0; i < SceneSettings::NumLights; ++i) {
+			const SceneSettings::Light& light = scene.lights[i];
+			shadingUniforms.lights[i].direction = glm::vec4{ light.direction, 0.0f };
+			if (light.enabled) {
+				shadingUniforms.lights[i].radiance = glm::vec4{ light.radiance, 0.0f };
+			}
+			else {
+				shadingUniforms.lights[i].radiance = glm::vec4{};
+			}
+		}
+		shadingUniforms.flags = glm::vec4(
+			scene.useAlbedo ? 1.0f : 0.0f, scene.useNormalMap ? 1.0f : 0.0f,
+			scene.useMetalness ? 1.0f : 0.0f, scene.useRoughness ? 1.0f : 0.0f);
+		shadingUniforms.extra = glm::vec4((float)scene.debugView, scene.phongShininess, 0.0f, 0.0f);
+		glNamedBufferSubData(m_shadingUB, 0, sizeof(ShadingUB), &shadingUniforms);
+	}
 
-  // Prepare framebuffer for rendering.
-  glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer.id);
-  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	// Prepare framebuffer for rendering.
+	glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer.id);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  // Bind uniform buffers.
-  glBindBufferBase(GL_UNIFORM_BUFFER, 0, m_transformUB);
-  glBindBufferBase(GL_UNIFORM_BUFFER, 1, m_shadingUB);
+	// Bind uniform buffers.
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, m_transformUB);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, m_shadingUB);
 
-  auto drawScene = [&](GLuint program, bool pbr) {
-    // Draw skybox.
-    glDisable(GL_DEPTH_TEST);
-    glUseProgram(m_skyboxProgram);
-    glBindTextureUnit(0, m_envTexture->id);
-    glBindVertexArray(m_skybox.vao);
-    glDrawElements(GL_TRIANGLES, m_skybox.numElements, GL_UNSIGNED_INT, 0);
+	auto drawScene = [&](GLuint program, bool pbr) {
+		// Draw skybox.
+		glDisable(GL_DEPTH_TEST);
+		glUseProgram(m_skyboxProgram);
+		glBindTextureUnit(0, currentHDR.env.id);
+		glBindVertexArray(m_skybox.vao);
+		glDrawElements(GL_TRIANGLES, m_skybox.numElements, GL_UNSIGNED_INT, 0);
 
-    // Draw model.
-    glEnable(GL_DEPTH_TEST);
-    glUseProgram(program);
-    glBindTextureUnit(0, m_albedoTexture->id);
-    glBindTextureUnit(1, m_normalTexture->id);
-    glBindTextureUnit(2, m_metalnessTexture->id);
-    glBindTextureUnit(3, m_roughnessTexture->id);
-    glBindTextureUnit(4, m_envTexture->id);
-    glBindTextureUnit(5, m_irmapTexture->id);
-    glBindTextureUnit(6, m_spBRDF_LUT.id);
-    // Select active mesh buffer
-    MeshBuffer *activeMesh = &m_wheelModel;
-    if (m_currentModel == SceneSettings::ModelType::Cerberus)
-      activeMesh = &m_cerberusModel;
-    else if (m_currentModel == SceneSettings::ModelType::HDD)
-      activeMesh = &m_hddModel;
-    glBindVertexArray(activeMesh->vao);
-    glDrawElements(GL_TRIANGLES, activeMesh->numElements, GL_UNSIGNED_INT, 0);
-  };
+		// Draw model.
+		glEnable(GL_DEPTH_TEST);
+		glUseProgram(program);
+		glBindTextureUnit(0, currentModel.albedo.id);
+		glBindTextureUnit(1, currentModel.normal.id);
+		glBindTextureUnit(2, currentModel.metalness.id);
+		glBindTextureUnit(3, currentModel.roughness.id);
+		glBindTextureUnit(4, currentHDR.env.id);
+		glBindTextureUnit(5, currentHDR.irmap.id);
+		glBindTextureUnit(6, m_spBRDF_LUT.id);
+
+		glBindVertexArray(currentModel.mesh.vao);
+		glDrawElements(GL_TRIANGLES, currentModel.mesh.numElements, GL_UNSIGNED_INT, 0);
+	};
 
   if (view.splitScreen) {
     int splitWidth = static_cast<int>(m_framebuffer.width * view.splitPosition);
@@ -437,297 +318,307 @@ void Renderer::render(GLFWwindow *window, const ViewSettings &view,
     int splitWidth = static_cast<int>(m_framebuffer.width * view.splitPosition);
     glEnable(GL_SCISSOR_TEST);
     glScissor(splitWidth - 1, 0, 2, m_framebuffer.height);
-    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glDisable(GL_SCISSOR_TEST);
-  }
+	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glDisable(GL_SCISSOR_TEST);
+	}
 }
 
-void Renderer::gui(GLFWwindow *window, ViewSettings &view,
-                   SceneSettings &scene) {
-  // ============================================================
-  // INTRO / WELCOME SCREEN
-  // ============================================================
-  if (scene.showIntro) {
-    ImVec2 displaySize = ImGui::GetIO().DisplaySize;
-    ImVec2 winSize(700, 480);
-    ImGui::SetNextWindowPos(ImVec2((displaySize.x - winSize.x) * 0.5f,
-                                   (displaySize.y - winSize.y) * 0.5f),
-                            ImGuiCond_Always);
-    ImGui::SetNextWindowSize(winSize, ImGuiCond_Always);
-    ImGui::SetNextWindowBgAlpha(0.95f);
-    ImGui::Begin("## Intro", nullptr,
-                 ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
-                     ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav);
+void Renderer::gui(GLFWwindow* window, ViewSettings& view, SceneSettings& scene)
+{
+	const ModelInfo& currentModel = m_availableModels[scene.currentModelIndex];
 
-    ImGui::SetCursorPosX(
-        (winSize.x - ImGui::CalcTextSize("PBR Renderer — Selamat Datang!").x) *
-        0.5f);
-    ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f),
-                       "PBR Renderer -- Selamat Datang!");
-    ImGui::Separator();
-    ImGui::Spacing();
+	// ============================================================
+	// INTRO / WELCOME SCREEN
+	// ============================================================
+	if (scene.showIntro) {
+		ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+		ImVec2 winSize(700, 480);
+		ImGui::SetNextWindowPos(ImVec2((displaySize.x - winSize.x) * 0.5f, (displaySize.y - winSize.y) * 0.5f), ImGuiCond_Always);
+		ImGui::SetNextWindowSize(winSize, ImGuiCond_Always);
+		ImGui::SetNextWindowBgAlpha(0.95f);
+		ImGui::Begin("## Intro", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav);
 
-    ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "[  MOUSE CONTROLS  ]");
-    ImGui::BulletText("Klik Kiri + Drag    : Putar sudut kamera (orbit view)");
-    ImGui::BulletText(
-        "Klik Kanan + Drag   : Putar objek di dunia (scene rotation)");
-    ImGui::BulletText("Scroll Mouse        : Zoom in / zoom out");
-    ImGui::Spacing();
+		ImGui::SetCursorPosX((winSize.x - ImGui::CalcTextSize("PBR Renderer — Selamat Datang!").x) * 0.5f);
+		ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f), "PBR Renderer -- Selamat Datang!");
+		ImGui::Separator();
+		ImGui::Spacing();
 
-    ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f),
-                       "[  KEYBOARD CONTROLS  ]");
-    ImGui::BulletText("W / S               : Putar objek naik / turun (pitch)");
-    ImGui::BulletText("A / D               : Putar objek kiri / kanan (yaw)");
-    ImGui::BulletText(
-        "SPACE               : Toggle Split-Screen (PBR vs Phong)");
-    ImGui::BulletText("Arrow Left / Right  : Geser garis pemisah split-screen");
-    ImGui::BulletText("F1 / F2 / F3        : Toggle lampu 1 / 2 / 3");
-    ImGui::BulletText(
-        "1 / 2 / 3 / 4       : Toggle Albedo / Normal / Metalness / Roughness");
-    ImGui::Spacing();
+		ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "[  MOUSE CONTROLS  ]");
+		ImGui::BulletText("Klik Kiri + Drag    : Putar sudut kamera (orbit view)");
+		ImGui::BulletText("Klik Kanan + Drag   : Putar objek di dunia (scene rotation)");
+		ImGui::BulletText("Scroll Mouse        : Zoom in / zoom out");
+		ImGui::Spacing();
 
-    ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f),
-                       "[  FITUR PANEL KONTROL  ]");
-    ImGui::BulletText(
-        "Model Selection     : Ganti model 3D (Wheel / Cerberus / HDD)");
-    ImGui::BulletText("Rendering Mode      : Split-screen & debug visualisasi");
-    ImGui::BulletText(
-        "Material Components : Toggle peta Albedo/Normal/Metalness/Roughness");
-    ImGui::BulletText("Light & Exposure    : Atur intensitas lampu & exposure");
-    ImGui::BulletText("Texture Preview     : Pratinjau PBR texture maps");
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
+		ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "[  KEYBOARD CONTROLS  ]");
+		ImGui::BulletText("W / S               : Putar objek naik / turun (pitch)");
+		ImGui::BulletText("A / D               : Putar objek kiri / kanan (yaw)");
+		ImGui::BulletText("SPACE               : Toggle Split-Screen (PBR vs Phong)");
+		ImGui::BulletText("Arrow Left / Right  : Geser garis pemisah split-screen");
+		ImGui::BulletText("F1 / F2 / F3        : Toggle lampu 1 / 2 / 3");
+		ImGui::BulletText("1 / 2 / 3 / 4       : Toggle Albedo / Normal / Metalness / Roughness");
+		ImGui::Spacing();
 
-    float btnW = 180.0f;
-    ImGui::SetCursorPosX((winSize.x - btnW) * 0.5f);
-    if (ImGui::Button("Mulai Eksplorasi!", ImVec2(btnW, 36))) {
-      scene.showIntro = false;
-    }
-    ImGui::End();
-    return; // skip rest of GUI while intro is visible
-  }
+		ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.3f, 1.0f), "[  FITUR PANEL KONTROL  ]");
+		ImGui::BulletText("Model Selection     : Ganti model 3D (Wheel / Cerberus / HDD)");
+		ImGui::BulletText("Rendering Mode      : Split-screen & debug visualisasi");
+		ImGui::BulletText("Material Components : Toggle peta Albedo/Normal/Metalness/Roughness");
+		ImGui::BulletText("Light & Exposure    : Atur intensitas lampu & exposure");
+		ImGui::BulletText("Texture Preview     : Pratinjau PBR texture maps");
+		ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::Spacing();
 
-  // ============================================================
-  // MAIN CONTROL PANEL
-  // ============================================================
-  ImGui::Begin("Panel Kontrol");
+		float btnW = 180.0f;
+		ImGui::SetCursorPosX((winSize.x - btnW) * 0.5f);
+		if (ImGui::Button("Mulai Eksplorasi!", ImVec2(btnW, 36))) {
+			scene.showIntro = false;
+		}
+		ImGui::End();
+		return;
+	}
 
-  // --- ? Help button (small circle) in header area ---
-  ImGui::SameLine(ImGui::GetWindowWidth() - 38);
-  if (ImGui::Button("(?)", ImVec2(32, 22))) {
-    scene.showHelp = !scene.showHelp;
-  }
-  if (ImGui::IsItemHovered())
-    ImGui::SetTooltip("Tampilkan panduan input interaksi");
+	// ============================================================
+	// MAIN CONTROL PANEL
+	// ============================================================
+	ImGui::Begin("Panel Kontrol");
 
-  // ---- MODEL & HDR SELECTION ----
-  if (ImGui::CollapsingHeader("Aset Scene",
-                              ImGuiTreeNodeFlags_DefaultOpen)) {
-    ImGui::Text("Model 3D:");
-    int modelIdx = (int)scene.selectedModel;
-    bool modelChanged = false;
-    modelChanged |= ImGui::RadioButton("F1 Wheel", &modelIdx,
-                                  (int)SceneSettings::ModelType::Wheel);
-    modelChanged |= ImGui::RadioButton("Cerberus Gun", &modelIdx,
-                                  (int)SceneSettings::ModelType::Cerberus);
-    modelChanged |= ImGui::RadioButton("HDD", &modelIdx,
-                                  (int)SceneSettings::ModelType::HDD);
-    if (modelChanged) {
-      scene.selectedModel = (SceneSettings::ModelType)modelIdx;
-      switchModel(scene.selectedModel);
-    }
-    
-    ImGui::Separator();
-    
-    ImGui::Text("Lingkungan HDR:");
-    int envIdx = (int)scene.selectedEnv;
-    bool envChanged = false;
-    envChanged |= ImGui::RadioButton("Gedung FT Outdoor", &envIdx,
-                                     (int)SceneSettings::EnvType::Outdoor1);
-    envChanged |= ImGui::RadioButton("Indoor", &envIdx,
-                                     (int)SceneSettings::EnvType::Indoor);
-    envChanged |= ImGui::RadioButton("Outdor 2", &envIdx,
-                                     (int)SceneSettings::EnvType::Outdoor2);
-    if (envChanged) {
-      scene.selectedEnv = (SceneSettings::EnvType)envIdx;
-      switchEnv(scene.selectedEnv);
-    }
-  }
+	// --- ? Help button (small circle) in header area ---
+	ImGui::SameLine(ImGui::GetWindowWidth() - 38);
+	if (ImGui::Button("(?)", ImVec2(32, 22))) {
+		scene.showHelp = !scene.showHelp;
+	}
+	if (ImGui::IsItemHovered())
+		ImGui::SetTooltip("Tampilkan panduan input interaksi");
 
-  if (ImGui::CollapsingHeader("Mode Rendering",
-                              ImGuiTreeNodeFlags_DefaultOpen)) {
-    ImGui::Checkbox("Perbandingan Split-Screen", &view.splitScreen);
+	// ---- MODEL & HDR SELECTION ----
+	if (ImGui::CollapsingHeader("Aset Scene", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Text("Model 3D:");
+		for (int i = 0; i < (int)m_availableModels.size(); ++i) {
+			if (ImGui::RadioButton(m_availableModels[i].name, &scene.currentModelIndex, i)) {
+				scene.modelChanged = true;
+			}
+		}
 
-    int debugView = (int)scene.debugView;
-    ImGui::Text("Visualisasi Debug:");
-    ImGui::RadioButton("Tidak Ada", &debugView, (int)SceneSettings::DebugView::None);
-    ImGui::RadioButton("Hanya Albedo", &debugView,
-                       (int)SceneSettings::DebugView::Albedo);
-    ImGui::RadioButton("Hanya Normal", &debugView,
-                       (int)SceneSettings::DebugView::Normal);
-    ImGui::RadioButton("Hanya Metalness", &debugView,
-                       (int)SceneSettings::DebugView::Metalness);
-    ImGui::RadioButton("Hanya Roughness", &debugView,
-                       (int)SceneSettings::DebugView::Roughness);
-    scene.debugView = (SceneSettings::DebugView)debugView;
-  }
+		ImGui::Separator();
 
-  if (ImGui::CollapsingHeader("Komponen Material",
-                              ImGuiTreeNodeFlags_DefaultOpen)) {
-    ImGui::Checkbox("Gunakan Albedo Map", &scene.useAlbedo);
-    ImGui::Checkbox("Gunakan Normal Map", &scene.useNormalMap);
-    ImGui::Checkbox("Gunakan Metalness Map", &scene.useMetalness);
-    ImGui::Checkbox("Gunakan Roughness Map", &scene.useRoughness);
-  }
+		ImGui::Text("Lingkungan HDR:");
+		for (int i = 0; i < (int)m_availableHDRs.size(); ++i) {
+			if (ImGui::RadioButton(m_availableHDRs[i].name, &scene.currentHDRIndex, i)) {
+				scene.hdrChanged = true;
+			}
+		}
+	}
 
-  if (ImGui::CollapsingHeader("Pencahayaan & Eksposur",
-                              ImGuiTreeNodeFlags_DefaultOpen)) {
-    ImGui::SliderFloat("Eksposur Skybox", &scene.exposure, 0.0f, 10.0f);
-    ImGui::SliderFloat("Tingkat Kilap Phong", &scene.phongShininess, 1.0f, 256.0f);
+	if (ImGui::CollapsingHeader("Mode Rendering", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Checkbox("Perbandingan Split-Screen", &view.splitScreen);
 
-    for (int i = 0; i < SceneSettings::NumLights; ++i) {
-      char buf[32];
-      std::sprintf(buf, "Lampu %d", i + 1);
-      if (ImGui::TreeNode(buf)) {
-        ImGui::Checkbox("Aktif", &scene.lights[i].enabled);
-        float intensity = glm::length(scene.lights[i].radiance);
-        glm::vec3 color = (intensity > 0.001f)
-                              ? (scene.lights[i].radiance / intensity)
-                              : glm::vec3(1.0f);
-        if (ImGui::ColorEdit3("Warna", &color[0])) {
-          scene.lights[i].radiance = color * intensity;
-        }
-        if (ImGui::DragFloat("Intensitas", &intensity, 0.1f, 0.0f, 100.0f)) {
-          scene.lights[i].radiance = color * intensity;
-        }
-        ImGui::TreePop();
-      }
-    }
-  }
+		int debugView = (int)scene.debugView;
+		ImGui::Text("Visualisasi Debug:");
+		ImGui::RadioButton("Tidak Ada", &debugView, (int)SceneSettings::DebugView::None);
+		ImGui::RadioButton("Hanya Albedo", &debugView, (int)SceneSettings::DebugView::Albedo);
+		ImGui::RadioButton("Hanya Normal", &debugView, (int)SceneSettings::DebugView::Normal);
+		ImGui::RadioButton("Hanya Metalness", &debugView, (int)SceneSettings::DebugView::Metalness);
+		ImGui::RadioButton("Hanya Roughness", &debugView, (int)SceneSettings::DebugView::Roughness);
+		scene.debugView = (SceneSettings::DebugView)debugView;
+	}
 
-  if (ImGui::CollapsingHeader("Pratinjau Tekstur (PiP)")) {
-    float size = 120.0f;
-    if (m_albedoTexture && ImGui::BeginTable("pip_table", 2)) {
-      ImGui::TableNextColumn();
-      ImGui::Text("Albedo");
-      ImGui::Image((void *)(intptr_t)m_albedoTexture->id, ImVec2(size, size));
+	if (ImGui::CollapsingHeader("Komponen Material", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Checkbox("Gunakan Albedo Map", &scene.useAlbedo);
+		ImGui::Checkbox("Gunakan Normal Map", &scene.useNormalMap);
+		ImGui::Checkbox("Gunakan Metalness Map", &scene.useMetalness);
+		ImGui::Checkbox("Gunakan Roughness Map", &scene.useRoughness);
+	}
 
-      ImGui::TableNextColumn();
-      ImGui::Text("Normal");
-      ImGui::Image((void *)(intptr_t)m_normalTexture->id, ImVec2(size, size));
+	if (ImGui::CollapsingHeader("Pencahayaan & Eksposur", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::SliderFloat("Eksposur Skybox", &scene.exposure, 0.0f, 10.0f);
+		ImGui::SliderFloat("Tingkat Kilap Phong", &scene.phongShininess, 1.0f, 256.0f);
 
-      ImGui::TableNextColumn();
-      ImGui::Text("Metalness");
-      ImGui::Image((void *)(intptr_t)m_metalnessTexture->id,
-                   ImVec2(size, size));
+		for (int i = 0; i < SceneSettings::NumLights; ++i) {
+			char buf[32];
+			std::sprintf(buf, "Lampu %d", i + 1);
+			if (ImGui::TreeNode(buf)) {
+				ImGui::Checkbox("Aktif", &scene.lights[i].enabled);
+				float intensity = glm::length(scene.lights[i].radiance);
+				glm::vec3 color = (intensity > 0.001f) ? (scene.lights[i].radiance / intensity) : glm::vec3(1.0f);
+				if (ImGui::ColorEdit3("Warna", &color[0])) {
+					scene.lights[i].radiance = color * intensity;
+				}
+				if (ImGui::DragFloat("Intensitas", &intensity, 0.1f, 0.0f, 100.0f)) {
+					scene.lights[i].radiance = color * intensity;
+				}
+				ImGui::TreePop();
+			}
+		}
+	}
 
-      ImGui::TableNextColumn();
-      ImGui::Text("Roughness");
-      ImGui::Image((void *)(intptr_t)m_roughnessTexture->id,
-                   ImVec2(size, size));
+	if (ImGui::CollapsingHeader("Pratinjau Tekstur (PiP)")) {
+		float size = 120.0f;
+		if (currentModel.albedo.id && ImGui::BeginTable("pip_table", 2)) {
+			ImGui::TableNextColumn();
+			ImGui::Text("Albedo");
+			ImGui::Image((void*)(intptr_t)currentModel.albedo.id, ImVec2(size, size));
 
-      ImGui::EndTable();
-    }
-  }
+			ImGui::TableNextColumn();
+			ImGui::Text("Normal");
+			ImGui::Image((void*)(intptr_t)currentModel.normal.id, ImVec2(size, size));
 
-  ImGui::End();
+			ImGui::TableNextColumn();
+			ImGui::Text("Metalness");
+			ImGui::Image((void*)(intptr_t)currentModel.metalness.id, ImVec2(size, size));
 
-  // ============================================================
-  // HELP POPUP (tombol ?)
-  // ============================================================
-  if (scene.showHelp) {
-    ImVec2 displaySize = ImGui::GetIO().DisplaySize;
-    ImVec2 helpSize(420, 360);
-    ImGui::SetNextWindowPos(ImVec2(displaySize.x - helpSize.x - 20,
-                                   displaySize.y * 0.5f - helpSize.y * 0.5f),
-                            ImGuiCond_Always);
-    ImGui::SetNextWindowSize(helpSize, ImGuiCond_Always);
-    ImGui::SetNextWindowBgAlpha(0.90f);
-    ImGui::Begin("Panduan Interaksi", &scene.showHelp,
-                 ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |
-                     ImGuiWindowFlags_NoSavedSettings);
+			ImGui::TableNextColumn();
+			ImGui::Text("Roughness");
+			ImGui::Image((void*)(intptr_t)currentModel.roughness.id, ImVec2(size, size));
 
-    ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f), "MOUSE");
-    ImGui::BulletText("Klik Kiri + Drag  : Putar kamera");
-    ImGui::BulletText("Klik Kanan + Drag : Putar objek");
-    ImGui::BulletText("Scroll            : Zoom");
-    ImGui::Spacing();
+			ImGui::EndTable();
+		}
+	}
 
-    ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "KEYBOARD");
-    ImGui::BulletText("W/A/S/D           : Putar objek");
-    ImGui::BulletText("SPACE             : Toggle Split-Screen");
-    ImGui::BulletText("Arrow Left/Right  : Geser pemisah split");
-    ImGui::BulletText("F1/F2/F3          : Toggle Lampu 1/2/3");
-    ImGui::BulletText("1/2/3/4           : Toggle Albedo/Normal/Metal/Rough");
-    ImGui::Spacing();
+	ImGui::End();
 
-    ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "PANEL KONTROL");
-    ImGui::BulletText("Model Selection   : Ganti model 3D");
-    ImGui::BulletText("Rendering Mode    : Debug & split-screen");
-    ImGui::BulletText("Material Comp.    : Toggle peta PBR");
-    ImGui::BulletText("Light & Exposure  : Atur pencahayaan");
-    ImGui::BulletText("Texture Preview   : Lihat PBR maps");
-    ImGui::Spacing();
-    ImGui::Separator();
-    if (ImGui::Button("Tutup", ImVec2(-1, 0)))
-      scene.showHelp = false;
-    ImGui::End();
-  }
+	// ============================================================
+	// HELP POPUP (tombol ?)
+	// ============================================================
+	if (scene.showHelp) {
+		ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+		ImVec2 helpSize(420, 360);
+		ImGui::SetNextWindowPos(ImVec2(displaySize.x - helpSize.x - 20, displaySize.y * 0.5f - helpSize.y * 0.5f), ImGuiCond_Always);
+		ImGui::SetNextWindowSize(helpSize, ImGuiCond_Always);
+		ImGui::SetNextWindowBgAlpha(0.90f);
+		ImGui::Begin("Panduan Interaksi", &scene.showHelp, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings);
 
-  // Stats Overlay
-  ImGui::SetNextWindowPos(ImVec2(10, 10));
-  ImGui::Begin("Stats", nullptr,
-               ImGuiWindowFlags_NoDecoration |
-                   ImGuiWindowFlags_AlwaysAutoResize |
-                   ImGuiWindowFlags_NoSavedSettings |
-                   ImGuiWindowFlags_NoFocusOnAppearing |
-                   ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove);
-  ImGui::Text("Performance: %.3f ms/frame (%.1f FPS)",
-              1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-  ImGui::End();
+		ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.2f, 1.0f), "MOUSE");
+		ImGui::BulletText("Klik Kiri + Drag  : Putar kamera");
+		ImGui::BulletText("Klik Kanan + Drag : Putar objek");
+		ImGui::BulletText("Scroll            : Zoom");
+		ImGui::Spacing();
 
-  // Auto-Labeller for split-screen
-  if (view.splitScreen) {
-    ImDrawList *drawList = ImGui::GetForegroundDrawList();
-    ImVec2 sz = ImGui::GetIO().DisplaySize;
-    float splitX = sz.x * view.splitPosition;
-    drawList->AddText(ImVec2(20, sz.y - 40), IM_COL32(255, 255, 255, 255),
-                      "SIDE A: PBR (Cook-Torrance)");
-    drawList->AddText(ImVec2(splitX + 20, sz.y - 40),
-                      IM_COL32(255, 255, 255, 255), "SIDE B: Classic Phong");
-  }
+		ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "KEYBOARD");
+		ImGui::BulletText("W/A/S/D           : Putar objek");
+		ImGui::BulletText("SPACE             : Toggle Split-Screen");
+		ImGui::BulletText("Arrow Left/Right  : Geser pemisah split");
+		ImGui::BulletText("F1/F2/F3          : Toggle Lampu 1/2/3");
+		ImGui::BulletText("1/2/3/4           : Toggle Albedo/Normal/Metal/Rough");
+		ImGui::Spacing();
+
+		ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f), "PANEL KONTROL");
+		ImGui::BulletText("Model Selection   : Ganti model 3D");
+		ImGui::BulletText("Rendering Mode    : Debug & split-screen");
+		ImGui::BulletText("Material Comp.    : Toggle peta PBR");
+		ImGui::BulletText("Light & Exposure  : Atur pencahayaan");
+		ImGui::BulletText("Texture Preview   : Lihat PBR maps");
+		ImGui::Spacing();
+		ImGui::Separator();
+		if (ImGui::Button("Tutup", ImVec2(-1, 0)))
+			scene.showHelp = false;
+		ImGui::End();
+	}
+
+	// Stats Overlay
+	ImGui::SetNextWindowPos(ImVec2(10, 10));
+	ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoMove);
+	ImGui::Text("Performance: %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+	ImGui::End();
+
+	// Auto-Labeller for split-screen
+	if (view.splitScreen) {
+		ImDrawList* drawList = ImGui::GetForegroundDrawList();
+		ImVec2 sz = ImGui::GetIO().DisplaySize;
+		float splitX = sz.x * view.splitPosition;
+		drawList->AddText(ImVec2(20, sz.y - 40), IM_COL32(255, 255, 255, 255), "SIDE A: PBR (Cook-Torrance)");
+		drawList->AddText(ImVec2(splitX + 20, sz.y - 40), IM_COL32(255, 255, 255, 255), "SIDE B: Classic Phong");
+	}
 }
 
-void Renderer::switchModel(SceneSettings::ModelType model) {
-  m_currentModel = model;
-  switch (model) {
-  case SceneSettings::ModelType::Wheel:
-    m_albedoTexture = &m_wheelAlbedo;
-    m_normalTexture = &m_wheelNormal;
-    m_metalnessTexture = &m_wheelMetalness;
-    m_roughnessTexture = &m_wheelRoughness;
-    break;
-  case SceneSettings::ModelType::Cerberus:
-    m_albedoTexture = &m_cerberusAlbedo;
-    m_normalTexture = &m_cerberusNormal;
-    m_metalnessTexture = &m_cerberusMetalness;
-    m_roughnessTexture = &m_cerberusRoughness;
-    break;
-  case SceneSettings::ModelType::HDD:
-    m_albedoTexture = &m_hddAlbedo;
-    m_normalTexture = &m_hddNormal;
-    m_metalnessTexture = &m_hddMetalness;
-    m_roughnessTexture = &m_hddRoughness;
-    break;
-  }
+void Renderer::loadModel(int modelIndex)
+{
+	if (modelIndex < 0 || modelIndex >= (int)m_availableModels.size()) return;
+	auto& info = m_availableModels[modelIndex];
+
+	std::printf("Loading model: %s\n", info.name);
+
+	auto mesh = Mesh::fromFile(info.meshPath);
+	info.mesh = createMeshBuffer(mesh);
+
+	info.albedo = createTexture(Image::fromFile(info.albedoPath, 3), GL_RGB, GL_SRGB8);
+	info.normal = createTexture(Image::fromFile(info.normalPath, 3), GL_RGB, GL_RGB8);
+	info.metalness = createTexture(Image::fromFile(info.metalnessPath, 1), GL_RED, GL_R8);
+	info.roughness = createTexture(Image::fromFile(info.roughnessPath, 1), GL_RED, GL_R8);
+
+	// Set swizzle mask for single-channel textures.
+	GLint swizzleMask[] = { GL_RED, GL_RED, GL_RED, GL_ONE };
+	glTextureParameteriv(info.metalness.id, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+	glTextureParameteriv(info.roughness.id, GL_TEXTURE_SWIZZLE_RGBA, swizzleMask);
+
+	// Calculate normalization matrix
+	glm::vec3 min = mesh->min();
+	glm::vec3 max = mesh->max();
+	glm::vec3 size = max - min;
+	glm::vec3 center = (min + max) * 0.5f;
+	float maxDim = std::max({ size.x, size.y, size.z });
+	float scale = (1.0f / maxDim) * info.scale; 
+
+	info.normalization = glm::scale(glm::mat4(1.0f), glm::vec3(scale)) * glm::translate(glm::mat4(1.0f), -center);
+
+	// Special case for F1 Wheel: needs 90 deg rotation on X
+	if (std::string(info.name).find("Wheel") != std::string::npos) {
+		info.preRotation = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	}
+	else {
+		info.preRotation = glm::mat4(1.0f);
+	}
 }
 
-void Renderer::switchEnv(SceneSettings::EnvType env) {
-  int idx = (int)env;
-  m_envTexture = &m_envTextures[idx];
-  m_irmapTexture = &m_irmapTextures[idx];
+void Renderer::loadHDREnvironment(int hdrIndex)
+{
+	if (hdrIndex < 0 || hdrIndex >= (int)m_availableHDRs.size()) return;
+	auto& info = m_availableHDRs[hdrIndex];
+
+	std::printf("Loading HDR environment: %s\n", info.name);
+
+	GLuint equirectToCubeProgram = linkProgram({ compileShader("shaders/glsl/equirect2cube_cs.glsl", GL_COMPUTE_SHADER) });
+	GLuint spmapProgram = linkProgram({ compileShader("shaders/glsl/spmap_cs.glsl", GL_COMPUTE_SHADER) });
+	GLuint irmapProgram = linkProgram({ compileShader("shaders/glsl/irmap_cs.glsl", GL_COMPUTE_SHADER) });
+
+	// Unfiltered environment cube map (temporary).
+	Texture envTextureUnfiltered = createTexture(GL_TEXTURE_CUBE_MAP, kEnvMapSize, kEnvMapSize, GL_RGBA16F);
+
+	// Convert equirectangular to cubemap
+	Texture envTextureEquirect = createTexture(Image::fromFile(info.path, 3), GL_RGB, GL_RGB16F, 1);
+	glUseProgram(equirectToCubeProgram);
+	glBindTextureUnit(0, envTextureEquirect.id);
+	glBindImageTexture(0, envTextureUnfiltered.id, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
+	glDispatchCompute(envTextureUnfiltered.width / 32, envTextureUnfiltered.height / 32, 6);
+	glDeleteTextures(1, &envTextureEquirect.id);
+	glGenerateTextureMipmap(envTextureUnfiltered.id);
+
+	// Pre-filtering specular environment map
+	info.env = createTexture(GL_TEXTURE_CUBE_MAP, kEnvMapSize, kEnvMapSize, GL_RGBA16F);
+	glCopyImageSubData(envTextureUnfiltered.id, GL_TEXTURE_CUBE_MAP, 0, 0, 0, 0,
+		info.env.id, GL_TEXTURE_CUBE_MAP, 0, 0, 0, 0,
+		info.env.width, info.env.height, 6);
+	glUseProgram(spmapProgram);
+	glBindTextureUnit(0, envTextureUnfiltered.id);
+	const float deltaRoughness = 1.0f / glm::max(float(info.env.levels - 1), 1.0f);
+	for (int level = 1, size = kEnvMapSize / 2; level <= info.env.levels; ++level, size /= 2) {
+		const GLuint numGroups = glm::max(1, size / 32);
+		glBindImageTexture(0, info.env.id, level, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
+		glProgramUniform1f(spmapProgram, 0, level * deltaRoughness);
+		glDispatchCompute(numGroups, numGroups, 6);
+	}
+	glDeleteTextures(1, &envTextureUnfiltered.id);
+
+	// Compute diffuse irradiance cubemap
+	info.irmap = createTexture(GL_TEXTURE_CUBE_MAP, kIrradianceMapSize, kIrradianceMapSize, GL_RGBA16F, 1);
+	glUseProgram(irmapProgram);
+	glBindTextureUnit(0, info.env.id);
+	glBindImageTexture(0, info.irmap.id, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_RGBA16F);
+	glDispatchCompute(info.irmap.width / 32, info.irmap.height / 32, 6);
+
+	glDeleteProgram(equirectToCubeProgram);
+	glDeleteProgram(spmapProgram);
+	glDeleteProgram(irmapProgram);
 }
 
 GLuint Renderer::compileShader(const std::string &filename, GLenum type) {

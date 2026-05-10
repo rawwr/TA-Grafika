@@ -37,9 +37,15 @@ public:
 	const std::vector<Vertex>& vertices() const { return m_vertices; }
 	const std::vector<Face>& faces() const { return m_faces; }
 
+	const glm::vec3& min() const { return m_min; }
+	const glm::vec3& max() const { return m_max; }
+
 private:
 	Mesh(const struct aiMesh* mesh);
 
 	std::vector<Vertex> m_vertices;
 	std::vector<Face> m_faces;
+
+	glm::vec3 m_min;
+	glm::vec3 m_max;
 };

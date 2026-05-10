@@ -61,6 +61,12 @@ struct SceneSettings
 	float exposure = 1.0f;
 	float phongShininess = 16.0f;
 
+	// Dynamic loading state
+	bool modelChanged = false;
+	bool hdrChanged = false;
+	int currentModelIndex = 0;
+	int currentHDRIndex = 0;
+
 	// UI state flags
 	bool showIntro = true;
 	bool showHelp  = false;
