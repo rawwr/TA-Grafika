@@ -1,0 +1,381 @@
+--- Page 1 ---
+V L A B - P B R :  A P L I K A S I  S I M U L A S I
+3 D  I N T E R A K T I F  S E B A G A I  M E D I A
+P E M B E L A J A R A N  K O M P A R A S I
+M A T E R I A L  P B R  D A N  P H O N G
+U n i v e r s i t a s  N e g e r i  M a l a n g
+1 0  M e i  2 0 2 6
+
+--- Page 2 ---
+D a f t a r  I s i
+G r a f i k a  K o m p u t e r  -  1 0 B B
+P r o f i l  P e n c i p t a  K a r y a
+P e n d a h u l u a n  &  M a n f a a t
+T a h a p  P e r s i a p a n  &  S p e s i f i k a s i
+S i s t e m
+A l u r  N a v i g a s i  &  E k s p l o r a s i  3 D
+P a n e l  K o n t r o l  ( B a g .  1 ) :  
+M a t e r i a l  &  D e b u g
+P a n e l  K o n t r o l  ( B a g .  2 ) :
+P e n c a h a y a a n  &  P i P
+S o u r c e  C o d e :  L o g i k a  R e n d e r i n g
+P B R
+S o u r c e  C o d e :  L o g i k a  R e n d e r i n g
+P h o n g
+K e s i m p u l a n  &  S a r a n
+L a m p i r a n  ( B a g .  1 ) :  S c r e e n s h o t
+A p l i k a s i  &  U I
+S o u r c e  C o d e :  A n t a r m u k a  I M G U I
+( C + + )  
+L a m p i r a n  ( B a g .  2 ) :  S c r e e n s h o t
+A p l i k a s i  &  U I
+0 1
+0 2
+0 3
+0 4
+0 5
+0 6
+0 7
+0 8
+0 9
+1 0
+1 1
+1 2
+1 3
+
+--- Page 3 ---
+P r o f i l  P e n c i p t a
+K a r y a
+0 1
+P e n c i p t a  5  :  I r .  A z h a r  A h m a d  S m a r a g d i n a ,  S . P d ,  M . P d
+P e n c i p t a  1  :  M u h a m m a d  R a y h a n  N a j i b
+P e n c i p t a  2  :  M .  I k h s a n  R i d h o  A .
+P e n c i p t a  3  :  W i l d a n  R o s y i d i  M u h a l i d
+P e n c i p t a  4  :  
+5
+1
+2
+3
+3
+G r a f i k a  K o m p u t e r  -  1 0 B B
+
+--- Page 4 ---
+P e n d a h u l u a n
+&  M a n f a a t
+0 2
+M e m a h a m i  p e r b e d a a n  t e k n i k  r e n d e r i n g  d a l a m  G r a f i k a
+K o m p u t e r  s e r i n g k a l i  s u l i t  j i k a  h a n y a  m e n g a n d a l k a n  t e o r i
+t e k s ,  t e r u t a m a  d a l a m  m e n g e n a l i  p a n t u l a n  c a h a y a  p a d a
+m a t e r i a l  y a n g  k o m p l e k s .  V L A B - P B R  h a d i r  s e b a g a i  i n o v a s i
+a p l i k a s i  V i r t u a l  L a b  3 D  i n t e r a k t i f  y a n g  m e m v i s u a l i s a s i k a n
+k o m p a r a s i  a n t a r a  P h y s i c a l l y  B a s e d  R e n d e r i n g  ( P B R )  d a n
+P h o n g  S h a d i n g  s e c a r a  r e a l - t i m e  t a n p a  m e n g h a r u s k a n
+p e n g g u n a  m e m b u k a  p e r a n g k a t  l u n a k  d e s a i n  3 D  y a n g
+b e r a t .
+B a g i  M a h a s i s w a  (P e m b e l a j a r )
+B a g i  D o s e n  &  P e n g a j a r
+M e m f a s i l i t a s i  m a h a s i s w a  u n t u k  m e n g a m a t i  d a n  m e m a h a m i  e f e k
+d a r i  k o m p o n e n  m a t e r i a l  3 D  ( s e p e r t i  A l b e d o ,  M e t a l l i c ,
+R o u g h n e s s ,  d a n  N o r m a l  M a p )  s e c a r a  m a n d i r i .  S i s t e m  c a r o u s e l
+i n t e r a k t i f  m e m a s t i k a n  m a h a s i s w a  d a p a t  m e n g a n a l i s i s
+p e r b e d a a n  p e r h i t u n g a n  c a h a y a  d e n g a n  m u d a h  d a n  j e l a s .
+M e m b e r i k a n  k e m u d a h a n  b a g i  p e n g a j a r  s e b a g a i  a l a t  b a n t u
+d e m o n s t r a s i  v i s u a l  y a n g  p r a k t i s .  D i l e n g k a p i  a n t a r m u k a
+H o l o g r a p h i c  U I  ( I m G u i )  u n t u k  m e m o d i f i k a s i  p a r a m e t e r  i n t e n s i t a s
+c a h a y a ,  p a n t u l a n ,  d a n  t e k s t u r  s e c a r a  r e a l - t i m e  s a a t  p e r k u l i a h a n
+s e d a n g  b e r l a n g s u n g .
+G r a f i k a  K o m p u t e r  -  1 0 B B
+
+--- Page 5 ---
+T ah ap  P e r s i ap an
+&  S p e s i f i k as i
+S i s t e m
+0 3
+I n f o
+S p e s i f i k a s i
+O S :  W i n d o w s  1 0 / 1 1  ( 6 4 - b i t )
+G P U :  M e n d u k u n g  O p e n G L
+3 . 3  |  R A M :  M i n .  4  G B
+M e n j a l a n k a n  A p l i k a s i
+L a n g k a h  p e r t a m a  u n t u k  m e n g g u n a k a n  V L A B - P B R  a d a l a h
+m e m a s t i k a n  p e r a n g k a t  k o m p u t e r  ( P C / L a p t o p )  A n d a
+m e m e n u h i  s t a n d a r  s p e s i f i k a s i  u n t u k  k o m p u t a s i  g r a f i s  3 D .
+A p l i k a s i  i n i  b e r s i f a t  p o r t a b l e  d a n  t i d a k  m e m e r l u k a n
+p r o s e s  i n s t a l a s i  p e r a n g k a t  l u n a k  y a n g  r u m i t .  S e t e l a h
+d i j a l a n k a n ,  s i s t e m  a k a n  o t o m a t i s  m e m u a t  a s e t  t e k s t u r  d a n
+m o d e l  3 D ,  l a l u  m e m b u k a  j e n d e l a  s i m u l a s i  s e c a r a
+l a n g s u n g .
+1 . E k s t r a k  d i r e k t o r i  f o l d e r  a p l i k a s i  V L A B - P B R .
+2 . P a s t i k a n  d r i v e r  K a r t u  G r a f i s  ( G P U )  s u d a h  m u t a k h i r .
+3 . B u k a  f o l d e r  t e r s e b u t  m e n g g u n a k a n  F i l e  E x p l o r e r .
+4 . K l i k  g a n d a  p a d a  f i l e  e x e c u t a b l e  ( P B R . e x e )  u n t u k
+m e m u l a i .
+G r a f i k a  K o m p u t e r  -  1 0 B B
+
+--- Page 6 ---
+A l u r  N a v i g a s i
+&  E k s p l o r a s i
+3 D
+G r a f i k a  K o m p u t e r  -  1 0 B B
+1
+ 2
+3
+ 3
+P e n g g u n a  d a p a t  m e n g e k s p l o r a s i  m o d e l  3 D  s e c a r a  i n t e r a k t i f
+m e n g g u n a k a n  t e t i k u s  u n t u k  m e m u t a r  p a n d a n g a n  k a m e r a  ( K l i k  K i r i )
+( 1 ) ,  m e r o t a s i  o b j e k  ( K l i k  K a n a n )  ( 2 ) ,  d a n  m e n g a t u r  j a r a k  p a n t a u
+( R o d a  G u l i r )  ( 3 ) ,  s e k a l i g u s  m e n e k a n  t o m b o l  S p a s i  p a d a  k e y b o a r d
+u n t u k  m e m b e l a h  l a y a r  s e c a r a  v e r t i k a l  g u n a  m e m b a n d i n g k a n  h a s i l
+P h y s i c a l l y  B a s e d  R e n d e r i n g  ( P B R )  d e n g a n  P h o n g  S h a d i n g  s e c a r a
+r e a l - t i m e .
+R o t a t e W o r l d
+0 4
+P e n g e n d a l i a n  K a m e r a
+( O r b i t  C a m e r a )
+Z o o m R o t a t e O b j e c t
+M o v e  S p l i t  S c r e e n
+
+--- Page 7 ---
+P a n e l  K o n t r o l
+( B a g .  1 ) :  M a t e r i a l
+&  D e b u g
+G r a f i k a  K o m p u t e r  -  1 0 B B
+0 5
+A n t a r m u k a  H o l o g r a p h i c  U I  ( I m G u i )
+P a n e l  H o l o g r a p h i c  U I  m e m u n g k i n k a n  p e n g g u n a
+m e m o d i f i k a s i  p a r a m e t e r  m a t e r i a l  s e c a r a  r e a l - t i m e .  M e l a l u i
+a n t a r m u k a  i n i ,  s i m u l a s i  l a p i s a n  t e k s t u r  d a n  s a l u r a n
+r e n d e r i n g  d a p a t  d i u j i  s e c a r a  i n s t a n  t a n p a  p e r l u  m e l a k u k a n
+r e n d e r  u l a n g  p a d a  o b j e k  3 D .
+D e b u g  V i s u a l i z a t i o n  :
+ F i t u r  i n i  m e n g i s o l a s i  s a l u r a n
+p e m e t a a n  o b j e k .  G u n a k a n  o p s i
+d r o p d o w n  u n t u k  m e n g a m a t i  w u j u d
+m e n t a h  d a r i  s e t i a p  t e k s t u r  ( s e p e r t i
+A l b e d o ,  N o r m a l ,  M e t a l n e s s ,  a t a u
+R o u g h n e s s )  m u r n i  t a n p a  a d a n y a
+g a n g g u a n  k o m p u t a s i  c a h a y a .
+M a t e r i a l  C o m p o n e n t s  :
+  F i t u r  s a k e l a r  ( c h e c k b o x )  u n t u k
+m e n g a k t i f k a n  a t a u  m e m a t i k a n
+l a p i s a n  t e k s t u r .  M e m a t i k a n  e f e k
+N o r m a l  M a p  a k a n  m e m b u a t
+p e r m u k a a n  y a n g  b e r g e l o m b a n g
+m e n j a d i  d a t a r  s e k e t i k a ,  s e d a n g k a n
+m e m a t i k a n  M e t a l n e s s  a k a n
+m e n g h i l a n g k a n  s i f a t  p a n t u l a n  l o g a m
+p a d a  o b j e k .
+
+--- Page 8 ---
+P a n e l  K o n t r o l
+( B a g .  2 ) :  S c e n e
+S e l e c t o r
+G r a f i k a  K o m p u t e r  -  1 0 B B
+0 6
+P e m i l i h a n  3 D  m o d e l  d a n  E n v  M a p
+B a g i a n  k e t i g a  d a r i  p a n e l  k o n t r o l  b e r f o k u s  p a d a  p e m i l i h a n
+r e n d e r  3 D  m o d e l  d a n  b a c k g r o u n d  e n v i r o n m e n t .
+A s e t  S c e n e   :
+ F i t u r  i n i  d i g u n a k a n  u n t u k  m e m i l i h
+3 D  m o d e l  y a n g  t e r s e d i a .
+L i n g k u n g a n  H D R  :
+  F i t u r  i n i  d i g u n a k a n  u n t u k  m e m i l i h
+b a c k r u n d  e n v i r o n m e n t .
+
+--- Page 9 ---
+P a n e l  K o n t r o l  ( B a g .
+3 ) :  P e n c a h a y a a n  &
+P i P
+0 6
+K o n f i g u r a s i  C a h a y a  &  P r a t i n j a u  ( P i P )
+B a g i a n  k e t i g a  d a r i  p a n e l  k o n t r o l  b e r f o k u s  p a d a  i n t e r a k s i
+c a h a y a  t e r h a d a p  m a t e r i a l  3 D .  P e n g g u n a  d a p a t  m e n g a t u r
+p e n c a h a y a a n  l i n g k u n g a n  ( S k y b o x )  d a n  m e n g e n d a l i k a n  t i g a
+s u m b e r  l a m p u  i n d e p e n d e n  u n t u k  m e n g a n a l i s i s  r e s p o n s
+v i s u a l  m a t e r i a l  P B R  d a n  P h o n g  s e c a r a  a k u r a t .
+L i g h t  &  E x p o s u r e  :
+ M e n g a t u r  t i n g k a t  k e c e r a h a n
+l i n g k u n g a n  g l o b a l  ( S k y b o x
+E x p o s u r e )  s e r t a  m e n g o n t r o l  n i l a i
+P h o n g  S h i n i n e s s  u n t u k  m e l i h a t
+p e r b e d a a n  k e t a j a m a n  k i l a u a n  p a d a
+o b j e k  s a a t  m o d e  P h o n g  d i a k t i f k a n .
+K o n f i g u r a s i  L a m p u  ( L i g h t  1 - 3 )  :
+  M e m b e r i k a n  k e n d a l i  p e n u h  a t a s
+t i g a  s u m b e r  c a h a y a .  P e n g g u n a
+d a p a t  m e n g h i d u p k a n / m e m a t i k a n
+l a m p u ,  m e n g u b a h  w a r n a  ( R G B ) ,  d a n
+m e n g a t u r  i n t e n s i t a s  p i j a r  g u n a
+m e n y o r o t i  r e a k s i  p e n y e r a p a n  a t a u
+p e m a n t u l a n  c a h a y a  p a d a  m a t e r i a l .
+T e x t u r e  P r e v i e w  ( P i P )  :
+ F i t u r  P i c t u r e - i n - P i c t u r e  y a n g
+m e n a m p i l k a n  w u j u d  a s l i  d a r i  f i l e
+g a m b a r  t e k s t u r  2 D  ( s e p e r t i  p e t a
+A l b e d o  a t a u  N o r m a l )  s e c a r a
+l a n g s u n g  d i  d a l a m  p a n e l  s e b a g a i
+r e f e r e n s i  e v a l u a s i .
+G r a f i k a  K o m p u t e r  -  1 0 B B
+
+--- Page 10 ---
+I n t i  d a r i  s i m u l a s i  v i s u a l  V L A B - P B R  t e r l e t a k  p a d a  p r o g r a m
+s h a d e r  y a n g  d i e k s e k u s i  l a n g s u n g  o l e h  G P U .  P a d a  m e t o d e
+P B R  ( p b r _ f s . g l s l ) ,  k a l k u l a s i  c a h a y a  m e n g g u n a k a n
+p e m o d e l a n  m a t e m a t i k a  C o o k - T o r r a n c e  B R D F .  A l g o r i t m a
+i n i  s e c a r a  s p e s i f i k  m e n g h i t u n g  f u n g s i  d i s t r i b u s i  M i c r o f a c e t
+( G G X )  d a n  a t e n u a s i  g e o m e t r i s  u n t u k  m e n y i m u l a s i k a n
+p a n t u l a n  m a t e r i a l  s e c a r a  a k u r a t  s e s u a i  h u k u m  f i s i k a
+c a h a y a  n y a t a .
+0 7
+S o u r c e  C o d e :
+L o g i k a
+R e n d e r i n g  P B R
+/ /  G G X  n o r m a l  d i s t r i b u t i o n  f u n c t i o n .
+/ /  U s e s  D i s n e y ' s  r e p a r a m e t r i z a t i o n  o f  a l p h a  =
+r o u g h n e s s ^ 2 .
+f l o a t  n d f G G X ( f l o a t  c o s L h ,  f l o a t  r o u g h n e s s )
+{
+    f l o a t  a l p h a    =  r o u g h n e s s  *  r o u g h n e s s ;
+    f l o a t  a l p h a S q  =  a l p h a  *  a l p h a ;
+    f l o a t  d e n o m  =  ( c o s L h  *  c o s L h )  *  ( a l p h a S q  -
+1 . 0 )  +  1 . 0 ;
+    r e t u r n  a l p h a S q  /  ( P I  *  d e n o m  *  d e n o m ) ;
+}
+/ /  S c h l i c k - G G X  g e o m e t r i c  a t t e n u a t i o n  f u n c t i o n
+u s i n g  S m i t h ' s  m e t h o d .
+f l o a t  g a S c h l i c k G G X ( f l o a t  c o s L i ,  f l o a t  c o s L o ,
+f l o a t  r o u g h n e s s )
+{
+    f l o a t  r  =  r o u g h n e s s  +  1 . 0 ;
+    f l o a t  k  =  ( r  *  r )  /  8 . 0 ;
+    r e t u r n  g a S c h l i c k G 1 ( c o s L i ,  k )  *
+g a S c h l i c k G 1 ( c o s L o ,  k ) ;
+}
+C u p l i k a n  S o u r c e  C o d e  p b r _ f s . g l s l  :
+G r a f i k a  K o m p u t e r  -  1 0 B B
+
+--- Page 11 ---
+S e b a g a i  p e m b a n d i n g  m e t o d e  r e n d e r i n g ,  V L A B - P B R
+m e n y e r t a k a n  a l g o r i t m a  p e n c a h a y a a n  k l a s i k  p a d a  f i l e
+p h o n g _ f s . g l s l .  B e r b e d a  d e n g a n  P B R ,  s k r i p  i n i
+m e n g g u n a k a n  m o d e l  p e n c a h a y a a n  t r a d i s i o n a l  y a n g
+l e b i h  s e d e r h a n a  d e n g a n  m e n g k a l k u l a s i  k o m p o n e n
+A m b i e n t ,  D i f f u s e ,  d a n  S p e c u l a r  s e c a r a  t e r p i s a h .
+M e t o d e  i n i  m e n g a b a i k a n  d a t a  N o r m a l  M a p  s e h i n g g a
+b e b a n  k o m p u t a s i  j a u h  l e b i h  r i n g a n  n a m u n
+m e n g h a s i l k a n  v i s u a l  y a n g  c e n d e r u n g  t e r l i h a t  s i n t e t i s
+a t a u  k u r a n g  r e a l i s t i s .
+0 8
+S o u r c e  C o d e :
+L o g i k a
+R e n d e r i n g  P h o n g
+/ /  - - -  A n a l y t i c a l  L i g h t s  - - -
+f o r ( i n t  i = 0 ;  i < N u m L i g h t s ;  + + i )
+{
+    v e c 3  L i  =  n o r m a l i z e ( - l i g h t s [ i ] . d i r e c t i o n . x y z ) ;
+    v e c 3  L r a d i a n c e  =  l i g h t s [ i ] . r a d i a n c e . x y z ;
+    / /  D i f f u s e  ( L a m b e r t )
+    f l o a t  c o s T h e t a  =  m a x ( d o t ( N ,  L i ) ,  0 . 0 ) ;
+    v e c 3  d i f f u s e  =  c o s T h e t a  *  d i f f u s e C o l o r  *  L r a d i a n c e ;
+    / /  S p e c u l a r  ( C l a s s i c  P h o n g )
+    v e c 3  R  =  r e f l e c t ( - L i ,  N ) ;
+    f l o a t  c o s A l p h a  =  m a x ( d o t ( R ,  V ) ,  0 . 0 ) ;
+    v e c 3  s p e c u l a r  =  p o w ( c o s A l p h a ,  s h i n i n e s s )  *  s p e c u l a r C o l o r  *
+L r a d i a n c e ;
+    
+    t o t a l L i g h t i n g  + =  d i f f u s e  +  s p e c u l a r ;
+}
+C u p l i k a n  S o u r c e  C o d e  p h o n g _ f s . g l s l  :
+G r a f i k a  K o m p u t e r  -  1 0 B B
+
+--- Page 12 ---
+A n t a r m u k a  p e n g g u n a  ( H o l o g r a p h i c  U I )  p a d a  V L A B -
+P B R  d i b a n g u n  m e n g g u n a k a n  p u s t a k a  D e a r  I m G u i
+b e r b a s i s  b a h a s a  C + + .  L o g i k a  p r o g r a m  y a n g  t e r d a p a t
+p a d a  f i l e  o p e n g l . c p p  i n i  b e r t u g a s  m e n j e m b a t a n i  i n p u t
+p e n g g u n a  d e n g a n  p r o s e s  k o m p u t a s i  d i  G P U .  M e l a l u i
+d e k l a r a s i  k o d e  i n i ,  p a n e l  k o n t r o l  i n t e r a k t i f  d i c i p t a k a n
+a g a r  v a r i a b e l  l a p i s a n  m a t e r i a l ,  m o d e  v i s u a l i s a s i ,  d a n
+i n t e n s i t a s  c a h a y a  d a p a t  d i m a n i p u l a s i  s e c a r a
+l a n g s u n g  ( r e a l - t i m e )  t a n p a  p e r l u  m e m u a t  u l a n g
+s i m u l a s i .
+0 9
+S o u r c e  C o d e :
+A n t a r m u k a
+I M G U I  ( C + + )  
+I m G u i : : B e g i n ( " C o n t r o l  P a n e l " ) ;
+  / /  . . .  ( k o d e  b a g i a n  r e n d e r i n g  m o d e )  . . .
+  i f  ( I m G u i : : C o l l a p s i n g H e a d e r ( " M a t e r i a l  C o m p o n e n t s " ,
+I m G u i T r e e N o d e F l a g s _ D e f a u l t O p e n ) )  {
+    I m G u i : : C h e c k b o x ( " U s e  A l b e d o  M a p " ,  & s c e n e . u s e A l b e d o ) ;
+    I m G u i : : C h e c k b o x ( " U s e  N o r m a l  M a p " ,  & s c e n e . u s e N o r m a l M a p ) ;
+    I m G u i : : C h e c k b o x ( " U s e  M e t a l n e s s  M a p " ,  & s c e n e . u s e M e t a l n e s s ) ;
+    I m G u i : : C h e c k b o x ( " U s e  R o u g h n e s s  M a p " ,  & s c e n e . u s e R o u g h n e s s ) ;
+  }
+  i f  ( I m G u i : : C o l l a p s i n g H e a d e r ( " L i g h t  &  E x p o s u r e " ,
+I m G u i T r e e N o d e F l a g s _ D e f a u l t O p e n ) )  {
+    I m G u i : : S l i d e r F l o a t ( " S k y b o x  E x p o s u r e " ,  & s c e n e . e x p o s u r e ,  0 . 0 f ,
+1 0 . 0 f ) ;
+    I m G u i : : S l i d e r F l o a t ( " P h o n g  S h i n i n e s s " ,  & s c e n e . p h o n g S h i n i n e s s ,
+1 . 0 f ,  2 5 6 . 0 f ) ;
+C u p l i k a n  S o u r c e  C o d e  o p e n g l . c p p  :
+G r a f i k a  K o m p u t e r  -  1 0 B B
+
+--- Page 13 ---
+G r a f i k a  K o m p u t e r  -  1 0 B B
+1 0
+L a m p i r a n  ( B a g .  1 ) :
+S c r e e n s h o t
+A p l i k a s i  &  U I
+G a m b a r  1 .  T a m p i l a n  U t a m a
+S i m u l a s i  P B R  p a d a  M o d e l
+H a r d R  D i s k
+G a m b a r  2 .  K o m p a r a s i
+S p l i t - S c r e e n  ( P B R  v s
+C l a s s i c  P h o n g ) .
+G a m b a r  3 .  M o d e  D e b u g
+V i s u a l i s a s i  M e t a l n e s s  M a p
+
+
+--- Page 14 ---
+G a m b a r  6 .  M o d i f i k a s i  W a r n a
+d a n  I n t e n s i t a s  C a h a y a
+( A n a l y t i c a l  L i g h t s ) .
+G r a f i k a  K o m p u t e r  -  1 0 B B
+1 2
+L a m p i r a n  ( B a g .  2 ) :
+S c r e e n s h o t
+A p l i k a s i  &  U I
+G a m b a r  4 .  M o d i f i k a s i  M a t e r i a l
+( M e n o n a k t i f k a n  A l b e d o ) .
+G a m b a r  5 .  D e m o n s t r a s i
+M a t e r i a l  T a n p a  S i f a t  L o g a m
+( M e t a l n e s s  o f f ) .
+
+--- Page 15 ---
+1 3
+K e s i m p u l a n  &
+S a r a n
+S i m u l a s i  V L A B - P B R  t e l a h  b e r h a s i l  d i k e m b a n g k a n  s e b a g a i
+m e d i a  p e m b e l a j a r a n  i n t e r a k t i f  u n t u k  e k s p l o r a s i  t e k n i k  G r a f i k a
+K o m p u t e r .  D i d u k u n g  o l e h  i n t e g r a s i  p i p e l i n e  O p e n G L  4 . 5  d a n
+a n t a r m u k a  I m G u i  b e r b a s i s  C + + ,  a p l i k a s i  i n i  s e c a r a  e f e k t i f
+m e n d e m o n s t r a s i k a n  k o m p u t a s i  s h a d e r  G L S L  s e c a r a  r e a l - t i m e .
+K o m b i n a s i  f i t u r  k o m p a r a s i  v i s u a l  i n s t a n  ( s p l i t - s c r e e n )  a n t a r a
+m e t o d e  C o o k - T o r r a n c e  B R D F  d a n  P h o n g  S h a d i n g ,  s e r t a
+m a n i p u l a s i  p a r a m e t e r  m a t e r i a l  i n t e r a k t i f ,  m e n j a d i k a n  i n o v a s i  i n i
+s e b a g a i  a l a t  b a n t u  y a n g  s a n g a t  p r e s i s i  u n t u k  m e m a h a m i
+i n t e r a k s i  c a h a y a  d a n  s i f a t  f i s i s  m a t e r i a l  p a d a  o b j e k  3 D .
+K e s i m p u l a n  :  
+S i m u l a s i  V L A B - P B R  t e l a h  b e r h a s i l  d i k e m b a n g k a n  s e b a g a i
+m e d i a  p e m b e l a j a r a n  i n t e r a k t i f  u n t u k  e k s p l o r a s i  t e k n i k  G r a f i k a
+K o m p u t e r .  D i d u k u n g  o l e h  i n t e g r a s i  p i p e l i n e  O p e n G L  4 . 5  d a n
+a n t a r m u k a  I m G u i  b e r b a s i s  C + + ,  a p l i k a s i  i n i  s e c a r a  e f e k t i f
+m e n d e m o n s t r a s i k a n  k o m p u t a s i  s h a d e r  G L S L  s e c a r a  r e a l - t i m e .
+K o m b i n a s i  f i t u r  k o m p a r a s i  v i s u a l  i n s t a n  ( s p l i t - s c r e e n )  a n t a r a
+m e t o d e  C o o k - T o r r a n c e  B R D F  d a n  P h o n g  S h a d i n g ,  s e r t a
+m a n i p u l a s i  p a r a m e t e r  m a t e r i a l  i n t e r a k t i f ,  m e n j a d i k a n  i n o v a s i  i n i
+s e b a g a i  a l a t  b a n t u  y a n g  s a n g a t  p r e s i s i  u n t u k  m e m a h a m i
+i n t e r a k s i  c a h a y a  d a n  s i f a t  f i s i s  m a t e r i a l  p a d a  o b j e k  3 D .
+S a r a n  :
+G r a f i k a  K o m p u t e r  -  1 0 B B

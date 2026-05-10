@@ -9,7 +9,6 @@
 
 
 #include <string>
-#include <vector>
 #include <glad/glad.h>
 
 #include "common/renderer.hpp"
@@ -66,9 +65,6 @@ private:
 	static MeshBuffer createMeshBuffer(const std::shared_ptr<class Mesh>& mesh);
 	static void deleteMeshBuffer(MeshBuffer& buffer);
 
-	void loadModel(int modelIndex);
-	void loadHDREnvironment(int hdrIndex);
-
 	static GLuint createUniformBuffer(const void* data, size_t size);
 	template<typename T> GLuint createUniformBuffer(const T* data=nullptr)
 	{
@@ -87,7 +83,14 @@ private:
 	FrameBuffer m_resolveFramebuffer;
 
 	MeshBuffer m_skybox;
-	MeshBuffer m_pbrModel;
+
+	// --- Per-model mesh buffers ---
+	MeshBuffer m_wheelModel;
+	MeshBuffer m_cerberusModel;
+	MeshBuffer m_hddModel;
+
+	// Active model pointer (updated on switch)
+	SceneSettings::ModelType m_currentModel = SceneSettings::ModelType::Wheel;
 
 	GLuint m_emptyVAO;
 
@@ -96,41 +99,34 @@ private:
 	GLuint m_pbrProgram;
 	GLuint m_phongProgram;
 
-	Texture m_envTexture;
-	Texture m_irmapTexture;
+	Texture m_envTextures[3];
+	Texture m_irmapTextures[3];
 	Texture m_spBRDF_LUT;
 
-	Texture m_albedoTexture;
-	Texture m_normalTexture;
-	Texture m_metalnessTexture;
-	Texture m_roughnessTexture;
+	// --- Per-model textures (albedo/normal/metalness/roughness) ---
+	// Wheel
+	Texture m_wheelAlbedo, m_wheelNormal, m_wheelMetalness, m_wheelRoughness;
+	// Cerberus
+	Texture m_cerberusAlbedo, m_cerberusNormal, m_cerberusMetalness, m_cerberusRoughness;
+	// HDD
+	Texture m_hddAlbedo, m_hddNormal, m_hddMetalness, m_hddRoughness;
+
+	// Active texture pointers (set on switch)
+	Texture* m_albedoTexture    = nullptr;
+	Texture* m_normalTexture    = nullptr;
+	Texture* m_metalnessTexture = nullptr;
+	Texture* m_roughnessTexture = nullptr;
+
+	// Active environment textures (set on switch)
+	Texture* m_envTexture   = nullptr;
+	Texture* m_irmapTexture = nullptr;
 
 	GLuint m_transformUB;
 	GLuint m_shadingUB;
 
-	glm::mat4 m_modelNormalization;
-	glm::mat4 m_modelPreRotation;
-
-	// Constants for texture sizes
-	static constexpr int kEnvMapSize = 1024;
-	static constexpr int kIrradianceMapSize = 32;
-	static constexpr int kBRDF_LUT_Size = 256;
-
-	// Dynamic loading lists
-	struct ModelInfo {
-		const char* name;
-		const char* meshPath;
-		const char* albedoPath;
-		const char* normalPath;
-		const char* metalnessPath;
-		const char* roughnessPath;
-	};
-	struct HDRInfo {
-		const char* name;
-		const char* path;
-	};
-	std::vector<ModelInfo> m_availableModels;
-	std::vector<HDRInfo> m_availableHDRs;
+	// Helper: switch active textures and model
+	void switchModel(SceneSettings::ModelType model);
+	void switchEnv(SceneSettings::EnvType env);
 };
 
 } // OpenGL

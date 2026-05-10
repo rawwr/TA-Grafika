@@ -9,10 +9,13 @@ cmake --build %BUILD_DIR% --target install --config Release
 
 if %ERRORLEVEL% EQU 0 (
     echo.
-    echo Build successful! The executable is located in the data/ folder.
-    echo You can run it with: cd data ^&^& .\PBR.exe
+    echo Build successful! Launching PBR.exe...
+    echo.
+    cd data
+    start "" PBR.exe
+    cd ..
 ) else (
     echo.
     echo Build failed! Please check the error messages above.
+    pause
 )
-pause
