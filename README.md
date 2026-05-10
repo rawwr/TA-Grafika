@@ -75,7 +75,9 @@ Sangat mudah! Anda **tidak perlu** mengetik perintah rumit.
 * `2` : **Normal Map** (Bentuk relief/tekstur kasar mikro)
 * `3` : **Metalness** (Sifat logam mengkilap)
 * `4` : **Roughness** (Tingkat keburaman/kekasaran permukaan)
-
+<p align="center">
+  <img src="menu debug.png" width="100%" alt="Tampilan debug PBR">
+</p>
 ---
 
 ##  Manual Book
