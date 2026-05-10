@@ -1,0 +1,132 @@
+/*
+ * Physically Based Rendering
+ * Copyright (c) 2017-2018 Michał Siejak
+ *
+ * OpenGL 4.5 renderer.
+ */
+
+#pragma once
+
+
+#include <string>
+#include <glad/glad.h>
+
+#include "common/renderer.hpp"
+
+namespace OpenGL {
+
+struct MeshBuffer
+{
+	MeshBuffer() : vbo(0), ibo(0), vao(0) {}
+	GLuint vbo, ibo, vao;
+	GLuint numElements;
+};
+
+struct FrameBuffer
+{
+	FrameBuffer() : id(0), colorTarget(0), depthStencilTarget(0) {}
+	GLuint id;
+	GLuint colorTarget;
+	GLuint depthStencilTarget;
+	int width, height;
+	int samples;
+};
+
+struct Texture
+{
+	Texture() : id(0) {}
+	GLuint id;
+	int width, height;
+	int levels;
+};
+
+class Renderer final : public RendererInterface
+{
+public:
+	Renderer();
+	GLFWwindow* initialize(int width, int height, int maxSamples) override;
+	void shutdown() override;
+	void setup() override;
+	void render(GLFWwindow* window, const ViewSettings& view, const SceneSettings& scene) override;
+	void gui(GLFWwindow* window, ViewSettings& view, SceneSettings& scene) override;
+
+private:
+	static GLuint compileShader(const std::string& filename, GLenum type);
+	static GLuint linkProgram(std::initializer_list<GLuint> shaders);
+
+	Texture createTexture(GLenum target, int width, int height, GLenum internalformat, int levels=0) const;
+	Texture createTexture(const std::shared_ptr<class Image>& image, GLenum format, GLenum internalformat, int levels=0) const;
+	static void deleteTexture(Texture& texture);
+
+	static FrameBuffer createFrameBuffer(int width, int height, int samples, GLenum colorFormat, GLenum depthstencilFormat);
+	static void resolveFramebuffer(const FrameBuffer& srcfb, const FrameBuffer& dstfb);
+	static void deleteFrameBuffer(FrameBuffer& fb);
+
+	static MeshBuffer createMeshBuffer(const std::shared_ptr<class Mesh>& mesh);
+	static void deleteMeshBuffer(MeshBuffer& buffer);
+
+	static GLuint createUniformBuffer(const void* data, size_t size);
+	template<typename T> GLuint createUniformBuffer(const T* data=nullptr)
+	{
+		return createUniformBuffer(data, sizeof(T));
+	}
+
+#if _DEBUG
+	static void logMessage(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
+#endif
+
+	struct {
+		float maxAnisotropy = 1.0f;
+	} m_capabilities;
+
+	FrameBuffer m_framebuffer;
+	FrameBuffer m_resolveFramebuffer;
+
+	MeshBuffer m_skybox;
+
+	// --- Per-model mesh buffers ---
+	MeshBuffer m_wheelModel;
+	MeshBuffer m_cerberusModel;
+	MeshBuffer m_hddModel;
+
+	// Active model pointer (updated on switch)
+	SceneSettings::ModelType m_currentModel = SceneSettings::ModelType::Wheel;
+
+	GLuint m_emptyVAO;
+
+	GLuint m_tonemapProgram;
+	GLuint m_skyboxProgram;
+	GLuint m_pbrProgram;
+	GLuint m_phongProgram;
+
+	Texture m_envTextures[3];
+	Texture m_irmapTextures[3];
+	Texture m_spBRDF_LUT;
+
+	// --- Per-model textures (albedo/normal/metalness/roughness) ---
+	// Wheel
+	Texture m_wheelAlbedo, m_wheelNormal, m_wheelMetalness, m_wheelRoughness;
+	// Cerberus
+	Texture m_cerberusAlbedo, m_cerberusNormal, m_cerberusMetalness, m_cerberusRoughness;
+	// HDD
+	Texture m_hddAlbedo, m_hddNormal, m_hddMetalness, m_hddRoughness;
+
+	// Active texture pointers (set on switch)
+	Texture* m_albedoTexture    = nullptr;
+	Texture* m_normalTexture    = nullptr;
+	Texture* m_metalnessTexture = nullptr;
+	Texture* m_roughnessTexture = nullptr;
+
+	// Active environment textures (set on switch)
+	Texture* m_envTexture   = nullptr;
+	Texture* m_irmapTexture = nullptr;
+
+	GLuint m_transformUB;
+	GLuint m_shadingUB;
+
+	// Helper: switch active textures and model
+	void switchModel(SceneSettings::ModelType model);
+	void switchEnv(SceneSettings::EnvType env);
+};
+
+} // OpenGL

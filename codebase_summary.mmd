@@ -1,0 +1,97 @@
+---
+title: PBR - Physically Based Rendering Codebase Summary (OpenGL 4.5)
+---
+
+graph TD
+    subgraph Entry["Entry Point"]
+        main["src/common/main.cpp\nInstantiates OpenGL::Renderer,\nruns Application loop"]
+    end
+
+    subgraph AppLayer["Application Layer (src/common/)"]
+        App["application.cpp/.hpp\nGLFW event loop, camera/scene input\n1920x1080 window, 16x MSAA\nMouse: LMB=rotate cam, RMB=rotate model\nScroll=zoom, F1-F3=toggle lights,\nSpace=toggle split-screen"]
+        RendIF["renderer.hpp\nRendererInterface (abstract base)\nViewSettings, SceneSettings structs\n3 directional lights, pitch/yaw/FOV/distance"]
+    end
+
+    subgraph CommonUtils["Shared Utilities (src/common/)"]
+        Mesh["mesh.cpp/.hpp\nLoads FBX/OBJ via Assimp\nVertex: pos + normal + tangent + bitangent + UV\n5 attributes, indexed faces"]
+        Image["image.cpp/.hpp\nLoads PNG (stb_image) + HDR textures\nSupports LDR (uint8) and HDR (float)"]
+        Utils["utils.cpp/.hpp\nFile::readText(), numMipmapLevels()"]
+        Optimus["optimus.cpp\nNVIDIA Optimus hint: prefer discrete GPU"]
+    end
+
+    subgraph Renderers["Renderer Implementations (src/)"]
+        OGL["opengl.cpp/.hpp\nOpenGL 4.5 Renderer\n~508 SLOC"]
+    end
+
+    subgraph OGLDetail["OpenGL 4.5 Renderer Detail"]
+        OGLInit["initialize()\nGL 4.5 core profile context via GLAD\nMSAA framebuffer + resolve framebuffer\nAnisotropic filtering caps"]
+        OGLSetup["setup()\nCompile/link 5 shader programs\nLoad cerberus.fbx mesh + 4 PBR textures\nEquirect→Cubemap compute pass\nPre-filtered specular env map (spmap)\nDiffuse irradiance map (irmap)\nSplit-sum BRDF LUT (spbrdf) 256x256"]
+        OGLRender["render()\n1. Update UBOs (transforms + shading)\n2. Skybox pass (no depth test)\n3. PBR model pass (depth test)\n4. Resolve MSAA\n5. Tonemap fullscreen triangle"]
+        OGLHelpers["Helpers\ncompileShader(), linkProgram()\ncreateTexture(), createFrameBuffer()\ncreateMeshBuffer(), createUniformBuffer()\nresolveFramebuffer(), logMessage()"]
+    end
+
+    subgraph Shaders["GLSL Shaders (data/shaders/glsl/)"]
+        ShaderPBR["pbr_vs/fs.glsl\nPBR lighting: GGX NDF, Smith G,\nSchlick Fresnel, IBL diffuse+specular\n7 texture inputs"]
+        ShaderSky["skybox_vs/fs.glsl\nCubemap skybox rendering"]
+        ShaderTone["tonemap_vs/fs.glsl\nReinhard tone mapping\nFilmic contrast curve\nGamma correction"]
+        ShaderCompute["Compute Shaders:\nequirect2cube_cs.glsl - HDR→cubemap\nirmap_cs.glsl - Diffuse irradiance\nspmap_cs.glsl - Specular prefilter\nspbrdf_cs.glsl - BRDF split-sum LUT"]
+    end
+
+    subgraph Assets["Data Assets (data/)"]
+        Env["environment.hdr\n~22.7 MB equirectangular HDR\nConverted to 1024³ cubemap at runtime"]
+        Model["meshes/cerberus.fbx\n~1.1 MB gun mesh (Cerberus)"]
+        Textures["textures/\ncerberus_A.png - Albedo (sRGB)\ncerberus_N.png - Normal map\ncerberus_M.png - Metalness\ncerberus_R.png - Roughness"]
+    end
+
+    subgraph Libs["Third Party Libraries (lib/)"]
+        GLFW["glfw/ - Window/input"]
+        GLAD["glad/ - OpenGL function loader (4.5)"]
+        GLM["glm/ - Math (vectors/matrices)"]
+        Assimp["assimp/ - Model loading"]
+        STB["stb/ - Image loading"]
+    end
+
+    subgraph Build["Build System (projects/)"]
+        CMake["projects/cmake/\nCMake build for Windows (MinGW) & Linux"]
+    end
+
+    %% Connections
+    main --> App
+    main --> OGL
+    App --> RendIF
+    OGL --> RendIF
+    App --> OGLInit
+    OGLInit --> OGLSetup
+    OGLSetup --> OGLRender
+    OGLSetup --> OGLHelpers
+    OGLRender --> OGLHelpers
+    OGLSetup --> ShaderPBR
+    OGLSetup --> ShaderSky
+    OGLSetup --> ShaderTone
+    OGLSetup --> ShaderCompute
+    OGLSetup --> Assets
+    OGLSetup --> Mesh
+    OGLSetup --> Image
+    Mesh --> Assimp
+    Image --> STB
+    App --> GLFW
+    OGL --> GLAD
+    OGL --> GLM
+    Build --> main
+
+    %% Styling
+    classDef entryStyle fill:#2d1b69,stroke:#7c3aed,color:#e0d0ff
+    classDef appStyle fill:#1a3a5c,stroke:#3b82f6,color:#bfdbfe
+    classDef oglStyle fill:#1a4a2e,stroke:#22c55e,color:#bbf7d0
+    classDef shaderStyle fill:#4a2a1a,stroke:#f97316,color:#fed7aa
+    classDef assetStyle fill:#3a1a4a,stroke:#a855f7,color:#e9d5ff
+    classDef libStyle fill:#3a3a1a,stroke:#eab308,color:#fef08a
+    classDef buildStyle fill:#3a1a1a,stroke:#ef4444,color:#fecaca
+
+    class main entryStyle
+    class App,RendIF appStyle
+    class OGL,OGLInit,OGLSetup,OGLRender,OGLHelpers oglStyle
+    class ShaderPBR,ShaderSky,ShaderTone,ShaderCompute shaderStyle
+    class Env,Model,Textures assetStyle
+    class GLFW,GLAD,GLM,Assimp,STB libStyle
+    class CMake buildStyle
