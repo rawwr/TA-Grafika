@@ -30,7 +30,6 @@ Mesh::Mesh(const aiMesh* mesh)
 	assert(mesh->HasPositions());
 	assert(mesh->HasNormals());
 
-	m_min = m_max = {mesh->mVertices[0].x, mesh->mVertices[0].y, mesh->mVertices[0].z};
 	m_vertices.reserve(mesh->mNumVertices);
 	for(size_t i=0; i<m_vertices.capacity(); ++i) {
 		Vertex vertex;
@@ -53,9 +52,6 @@ Mesh::Mesh(const aiMesh* mesh)
 			vertex.texcoord = {0.0f, 0.0f};
 		}
 		m_vertices.push_back(vertex);
-
-		m_min = glm::min(m_min, vertex.position);
-		m_max = glm::max(m_max, vertex.position);
 	}
 	
 	m_faces.reserve(mesh->mNumFaces);
@@ -112,9 +108,6 @@ std::shared_ptr<Mesh> Mesh::fromFile(const std::string& filename)
 				vertex.texcoord = {0.0f, 0.0f};
 			}
 			mesh->m_vertices.push_back(vertex);
-
-			mesh->m_min = glm::min(mesh->m_min, vertex.position);
-			mesh->m_max = glm::max(mesh->m_max, vertex.position);
 		}
 		
 		// Append faces with adjusted indices

@@ -38,20 +38,32 @@ struct SceneSettings
 		Roughness
 	};
 
+	enum class ModelType {
+		Wheel = 0,
+		Cerberus = 1,
+		HDD = 2
+	};
+
+	enum class EnvType {
+		Outdoor1 = 0, // LM Outdor
+		Indoor = 1,
+		Outdoor2 = 2
+	};
+
 	bool useAlbedo = true;
 	bool useNormalMap = true;
 	bool useMetalness = true;
 	bool useRoughness = true;
 
 	DebugView debugView = DebugView::None;
+	ModelType selectedModel = ModelType::Wheel;
+	EnvType selectedEnv = EnvType::Outdoor1;
 	float exposure = 1.0f;
 	float phongShininess = 16.0f;
 
-	// Dynamic loading
-	int currentModelIndex = 0;
-	int currentHDRIndex = 0;
-	bool modelChanged = false;
-	bool hdrChanged = false;
+	// UI state flags
+	bool showIntro = true;
+	bool showHelp  = false;
 };
 
 class RendererInterface
