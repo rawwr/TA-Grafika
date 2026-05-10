@@ -6,6 +6,7 @@
 #pragma once
 #include <string>
 #include <glm/mat4x4.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 struct GLFWwindow;
 
@@ -21,8 +22,7 @@ struct ViewSettings
 
 struct SceneSettings
 {
-	float pitch = 0.0f;
-	float yaw = 0.0f;
+	glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
 
 	static const int NumLights = 3;
 	struct Light {

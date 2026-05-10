@@ -8,6 +8,9 @@
 #include <backends/imgui_impl_opengl3.h>
 #include <imgui.h>
 #include <stdexcept>
+#include <glm/glm.hpp>
+#include <glm/gtx/euler_angles.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 #include "application.hpp"
 
@@ -17,12 +20,11 @@ const int DisplaySizeY = 1080;
 const int DisplaySamples = 16;
 
 const float ViewDistance = 150.0f;
-const float ViewFOV = 80.0f; // Increased from 60 to 75 for even wider view
-const float OrbitSpeed = 1.0f;
-const float ZoomSpeed =
-    0.20f; // Proporsional terhadap jarak (8% per scroll tick)
-const float KeyboardRotationSpeed = 4.0f; // Kecepatan rotasi WASD & Arrow
-const float SplitMoveSpeed = 0.20f; // Speed untuk geser garis split-screen
+const float ViewFOV = 60.0f;
+const float OrbitSpeed = 0.5f; // Reduced for smoother, more precise control
+const float ZoomSpeed = 0.20f; // Proportional to distance (20% per scroll tick)
+const float KeyboardRotationSpeed = 5.0f; // Rotation speed for WASD
+const float SplitMoveSpeed = 0.02f; // Small discrete step for keyboard control
 } // namespace
 
 Application::Application()
@@ -34,6 +36,8 @@ Application::Application()
 
   m_viewSettings.distance = ViewDistance;
   m_viewSettings.fov = ViewFOV;
+  m_viewSettings.pitch = 0.0f;
+  m_viewSettings.yaw = 0.0f;
 
   m_sceneSettings.lights[0].direction =
       glm::normalize(glm::vec3{-1.0f, 0.0f, 0.0f});
@@ -124,14 +128,26 @@ void Application::mousePositionCallback(GLFWwindow *window, double xpos,
     const double dy = ypos - self->m_prevCursorY;
 
     switch (self->m_mode) {
-    case InputMode::RotatingScene:
-      self->m_sceneSettings.yaw += OrbitSpeed * float(dx);
-      self->m_sceneSettings.pitch += OrbitSpeed * float(dy);
+    case InputMode::RotatingScene: {
+      glm::mat4 viewRot = glm::eulerAngleYX(glm::radians(self->m_viewSettings.yaw), glm::radians(self->m_viewSettings.pitch));
+      glm::vec3 camRight = glm::vec3(viewRot[0]);
+      glm::vec3 camUp = glm::vec3(viewRot[1]);
+      
+      glm::quat qY = glm::angleAxis(glm::radians(float(-dx) * OrbitSpeed), camUp);
+      glm::quat qX = glm::angleAxis(glm::radians(float(-dy) * OrbitSpeed), camRight);
+      
+      self->m_sceneSettings.rotation = qY * qX * self->m_sceneSettings.rotation;
+      self->m_sceneSettings.rotation = glm::normalize(self->m_sceneSettings.rotation);
       break;
-    case InputMode::RotatingView:
-      self->m_viewSettings.yaw += OrbitSpeed * float(dx);
-      self->m_viewSettings.pitch += OrbitSpeed * float(dy);
+    }
+    case InputMode::RotatingView: {
+      // Natural orbit camera: drag right = rotate right, drag down = look down
+      self->m_viewSettings.yaw   += OrbitSpeed * float(dx);
+      self->m_viewSettings.pitch -= OrbitSpeed * float(dy); // Invert: drag down = look down (negative pitch)
+      // Clamp pitch to prevent camera flipping over
+      self->m_viewSettings.pitch = glm::clamp(self->m_viewSettings.pitch, -89.0f, 89.0f);
       break;
+    }
     }
 
     self->m_prevCursorX = xpos;
@@ -152,13 +168,9 @@ void Application::mouseButtonCallback(GLFWwindow *window, int button,
     case GLFW_MOUSE_BUTTON_1:
       self->m_mode = InputMode::RotatingView;
       break;
-    case GLFW_MOUSE_BUTTON_2:
-      self->m_mode = InputMode::RotatingScene;
-      break;
     }
   }
-  if (action == GLFW_RELEASE &&
-      (button == GLFW_MOUSE_BUTTON_1 || button == GLFW_MOUSE_BUTTON_2)) {
+  if (action == GLFW_RELEASE && button == GLFW_MOUSE_BUTTON_1) {
     self->m_mode = InputMode::None;
   }
 
@@ -198,32 +210,49 @@ void Application::keyCallback(GLFWwindow *window, int key, int scancode,
     SceneSettings::Light *light = nullptr;
 
     switch (key) {
-    // WASD model rotation controls (intuitive orbit-style)
+    // WASD object rotation - simple and intuitive
     case GLFW_KEY_W:
-      self->m_sceneSettings.pitch -= KeyboardRotationSpeed;
-      break;
     case GLFW_KEY_S:
-      self->m_sceneSettings.pitch += KeyboardRotationSpeed;
-      break;
     case GLFW_KEY_A:
-      self->m_sceneSettings.yaw -= KeyboardRotationSpeed;
+    case GLFW_KEY_D: {
+      // Use world-space axes for consistent, predictable rotation
+      glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f);
+      glm::vec3 worldRight = glm::vec3(1.0f, 0.0f, 0.0f);
+      
+      // Simple rotations: W/S tilt forward/back, A/D spin left/right
+      if (key == GLFW_KEY_W) {
+        // Tilt forward (top goes away)
+        glm::quat rot = glm::angleAxis(glm::radians(-KeyboardRotationSpeed), worldRight);
+        self->m_sceneSettings.rotation = rot * self->m_sceneSettings.rotation;
+      } else if (key == GLFW_KEY_S) {
+        // Tilt backward (top comes toward)
+        glm::quat rot = glm::angleAxis(glm::radians(KeyboardRotationSpeed), worldRight);
+        self->m_sceneSettings.rotation = rot * self->m_sceneSettings.rotation;
+      } else if (key == GLFW_KEY_A) {
+        // Spin counter-clockwise (left)
+        glm::quat rot = glm::angleAxis(glm::radians(KeyboardRotationSpeed), worldUp);
+        self->m_sceneSettings.rotation = rot * self->m_sceneSettings.rotation;
+      } else if (key == GLFW_KEY_D) {
+        // Spin clockwise (right)
+        glm::quat rot = glm::angleAxis(glm::radians(-KeyboardRotationSpeed), worldUp);
+        self->m_sceneSettings.rotation = rot * self->m_sceneSettings.rotation;
+      }
+      self->m_sceneSettings.rotation = glm::normalize(self->m_sceneSettings.rotation);
       break;
-    case GLFW_KEY_D:
-      self->m_sceneSettings.yaw += KeyboardRotationSpeed;
-      break;
-    // Arrow keys for split screen position
+    }
+    // Arrow keys for split screen position (discrete steps)
     case GLFW_KEY_LEFT:
       if (self->m_viewSettings.splitScreen) {
         self->m_viewSettings.splitPosition -= SplitMoveSpeed;
-        if (self->m_viewSettings.splitPosition < 0.1f)
-          self->m_viewSettings.splitPosition = 0.1f;
+        if (self->m_viewSettings.splitPosition < 0.05f)
+          self->m_viewSettings.splitPosition = 0.05f;
       }
       break;
     case GLFW_KEY_RIGHT:
       if (self->m_viewSettings.splitScreen) {
         self->m_viewSettings.splitPosition += SplitMoveSpeed;
-        if (self->m_viewSettings.splitPosition > 0.9f)
-          self->m_viewSettings.splitPosition = 0.9f;
+        if (self->m_viewSettings.splitPosition > 0.95f)
+          self->m_viewSettings.splitPosition = 0.95f;
       }
       break;
     // Light toggles

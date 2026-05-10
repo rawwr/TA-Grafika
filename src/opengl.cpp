@@ -218,7 +218,7 @@ void Renderer::render(GLFWwindow* window, const ViewSettings& view, const SceneS
 
 	const glm::mat4 projectionMatrix = glm::perspectiveFov(glm::radians(view.fov), float(m_framebuffer.width), float(m_framebuffer.height), 0.01f, 10000.0f);
 	const glm::mat4 viewRotationMatrix = glm::eulerAngleYX(glm::radians(view.yaw), glm::radians(view.pitch));
-	const glm::mat4 sceneRotationMatrix = glm::eulerAngleYX(glm::radians(scene.yaw), glm::radians(scene.pitch));
+	const glm::mat4 sceneRotationMatrix = glm::mat4_cast(scene.rotation);
 
 	const glm::mat4 sceneTransform = sceneRotationMatrix * currentModel.preRotation * currentModel.normalization;
 	const glm::mat4 viewMatrix = glm::translate(glm::mat4{ 1.0f }, { 0.0f, 0.0f, -view.distance }) * viewRotationMatrix;
