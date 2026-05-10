@@ -1,4 +1,4 @@
-#  Simulasi PBR (Physically Based Rendering) n
+#  Simulasi PBR (Physically Based Rendering)
 
 Selamat datang di proyek Simulasi Grafika Komputer! Aplikasi ini dibuat untuk mendemonstrasikan bagaimana cahaya berinteraksi dengan benda 3D di dunia nyata (menggunakan teknik **PBR**) dan membandingkannya dengan teknik pencahayaan jadul (**Phong Shading**).
 
