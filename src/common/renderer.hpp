@@ -4,7 +4,9 @@
  */
 
 #pragma once
+#include <string>
 #include <glm/mat4x4.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 struct GLFWwindow;
 
@@ -20,8 +22,7 @@ struct ViewSettings
 
 struct SceneSettings
 {
-	float pitch = 0.0f;
-	float yaw = 0.0f;
+	glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
 
 	static const int NumLights = 3;
 	struct Light {
@@ -60,6 +61,17 @@ struct SceneSettings
 	EnvType selectedEnv = EnvType::Outdoor1;
 	float exposure = 1.0f;
 	float phongShininess = 16.0f;
+
+	// Dynamic loading state
+	bool modelChanged = false;
+	bool hdrChanged = false;
+	int currentModelIndex = 0;
+	int currentHDRIndex = 0;
+
+	// Async loading state
+	bool isLoading = true;
+	float loadingProgress = 0.0f;
+	std::string loadingStatus = "Initializing...";
 
 	// UI state flags
 	bool showIntro = true;

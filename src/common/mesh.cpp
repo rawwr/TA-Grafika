@@ -6,6 +6,8 @@
 #include <cstdio>
 #include <stdexcept>
 #include <cassert>
+#include <limits>
+#include <algorithm>
 #include <assimp/cimport.h>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
@@ -30,10 +32,15 @@ Mesh::Mesh(const aiMesh* mesh)
 	assert(mesh->HasPositions());
 	assert(mesh->HasNormals());
 
+	m_min = glm::vec3(std::numeric_limits<float>::max());
+	m_max = glm::vec3(std::numeric_limits<float>::lowest());
+
 	m_vertices.reserve(mesh->mNumVertices);
 	for(size_t i=0; i<m_vertices.capacity(); ++i) {
 		Vertex vertex;
 		vertex.position = {mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z};
+		m_min = glm::min(m_min, vertex.position);
+		m_max = glm::max(m_max, vertex.position);
 		vertex.normal = {mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z};
 		if(mesh->HasTangentsAndBitangents()) {
 			vertex.tangent = {mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z};
@@ -92,6 +99,8 @@ std::shared_ptr<Mesh> Mesh::fromFile(const std::string& filename)
 		for(size_t v = 0; v < aiMesh->mNumVertices; ++v) {
 			Vertex vertex;
 			vertex.position = {aiMesh->mVertices[v].x, aiMesh->mVertices[v].y, aiMesh->mVertices[v].z};
+			mesh->m_min = glm::min(mesh->m_min, vertex.position);
+			mesh->m_max = glm::max(mesh->m_max, vertex.position);
 			vertex.normal = {aiMesh->mNormals[v].x, aiMesh->mNormals[v].y, aiMesh->mNormals[v].z};
 			if(aiMesh->HasTangentsAndBitangents()) {
 				vertex.tangent = {aiMesh->mTangents[v].x, aiMesh->mTangents[v].y, aiMesh->mTangents[v].z};

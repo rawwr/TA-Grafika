@@ -7,8 +7,12 @@
 
 #pragma once
 
-
 #include <string>
+#include <vector>
+#include <memory>
+#include <thread>
+#include <atomic>
+#include <future>
 #include <glad/glad.h>
 
 #include "common/renderer.hpp"
@@ -17,7 +21,7 @@ namespace OpenGL {
 
 struct MeshBuffer
 {
-	MeshBuffer() : vbo(0), ibo(0), vao(0) {}
+	MeshBuffer() : vbo(0), ibo(0), vao(0), numElements(0) {}
 	GLuint vbo, ibo, vao;
 	GLuint numElements;
 };
@@ -71,6 +75,13 @@ private:
 		return createUniformBuffer(data, sizeof(T));
 	}
 
+	void loadModel(int modelIndex);
+	void loadHDREnvironment(int hdrIndex);
+
+	// Async Loading System
+	void processAsyncLoading(SceneSettings& scene);
+	void startAsyncLoad();
+
 #if _DEBUG
 	static void logMessage(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam);
 #endif
@@ -84,14 +95,6 @@ private:
 
 	MeshBuffer m_skybox;
 
-	// --- Per-model mesh buffers ---
-	MeshBuffer m_wheelModel;
-	MeshBuffer m_cerberusModel;
-	MeshBuffer m_hddModel;
-
-	// Active model pointer (updated on switch)
-	SceneSettings::ModelType m_currentModel = SceneSettings::ModelType::Wheel;
-
 	GLuint m_emptyVAO;
 
 	GLuint m_tonemapProgram;
@@ -99,34 +102,60 @@ private:
 	GLuint m_pbrProgram;
 	GLuint m_phongProgram;
 
-	Texture m_envTextures[3];
-	Texture m_irmapTextures[3];
 	Texture m_spBRDF_LUT;
-
-	// --- Per-model textures (albedo/normal/metalness/roughness) ---
-	// Wheel
-	Texture m_wheelAlbedo, m_wheelNormal, m_wheelMetalness, m_wheelRoughness;
-	// Cerberus
-	Texture m_cerberusAlbedo, m_cerberusNormal, m_cerberusMetalness, m_cerberusRoughness;
-	// HDD
-	Texture m_hddAlbedo, m_hddNormal, m_hddMetalness, m_hddRoughness;
-
-	// Active texture pointers (set on switch)
-	Texture* m_albedoTexture    = nullptr;
-	Texture* m_normalTexture    = nullptr;
-	Texture* m_metalnessTexture = nullptr;
-	Texture* m_roughnessTexture = nullptr;
-
-	// Active environment textures (set on switch)
-	Texture* m_envTexture   = nullptr;
-	Texture* m_irmapTexture = nullptr;
 
 	GLuint m_transformUB;
 	GLuint m_shadingUB;
 
-	// Helper: switch active textures and model
-	void switchModel(SceneSettings::ModelType model);
-	void switchEnv(SceneSettings::EnvType env);
+	// Constants for texture sizes
+	static constexpr int kEnvMapSize = 1024;
+	static constexpr int kIrradianceMapSize = 32;
+	static constexpr int kBRDF_LUT_Size = 256;
+
+	// Dynamic loading lists
+	struct ModelInfo {
+		const char* name;
+		const char* meshPath;
+		const char* albedoPath;
+		const char* normalPath;
+		const char* metalnessPath;
+		const char* roughnessPath;
+		float scale;
+
+		// GPU Resources
+		MeshBuffer mesh;
+		Texture albedo;
+		Texture normal;
+		Texture metalness;
+		Texture roughness;
+		glm::mat4 normalization;
+		glm::mat4 preRotation;
+
+		// Async State
+		bool isLoaded = false;
+		bool cpuReady = false;
+		std::shared_ptr<class Mesh> cpuMesh;
+		std::shared_ptr<class Image> cpuAlbedo, cpuNormal, cpuMetalness, cpuRoughness;
+	};
+	struct HDRInfo {
+		const char* name;
+		const char* path;
+
+		// GPU Resources
+		Texture env;
+		Texture irmap;
+
+		// Async State
+		bool isLoaded = false;
+		bool cpuReady = false;
+		std::shared_ptr<class Image> cpuEquirect;
+	};
+	std::vector<ModelInfo> m_availableModels;
+	std::vector<HDRInfo> m_availableHDRs;
+
+	std::thread m_loadingThread;
+	std::atomic<int> m_loadIndex;
+	std::atomic<bool> m_isTerminating;
 };
 
 } // OpenGL
