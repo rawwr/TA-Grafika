@@ -30,7 +30,7 @@ Proyek ini mengandung file 3D dan tekstur gambar berkualitas sangat tinggi (ukur
 
 Cara untuk mengunduhnya:
 
-###  Menggunakan Terminal (Untuk Programmer)
+###  Menggunakan Terminal (Untuk Semua User Windows 10/11)
 Pastikan Anda sudah menginstal **Git** dan **Git LFS** di komputer Anda. Buka terminal dan ketik:
 ```bash
 # Wajib install Git LFS dulu jika belum punya
