@@ -130,8 +130,9 @@ void Application::mousePositionCallback(GLFWwindow *window, double xpos,
     switch (self->m_mode) {
     case InputMode::RotatingScene: {
       glm::mat4 viewRot = glm::eulerAngleYX(glm::radians(self->m_viewSettings.yaw), glm::radians(self->m_viewSettings.pitch));
-      glm::vec3 camRight = glm::vec3(viewRot[0]);
-      glm::vec3 camUp = glm::vec3(viewRot[1]);
+      glm::mat4 viewRotInv = glm::inverse(viewRot);
+      glm::vec3 camRight = glm::vec3(viewRotInv[0]);
+      glm::vec3 camUp = glm::vec3(viewRotInv[1]);
       
       glm::quat qY = glm::angleAxis(glm::radians(float(-dx) * OrbitSpeed), camUp);
       glm::quat qX = glm::angleAxis(glm::radians(float(-dy) * OrbitSpeed), camRight);
@@ -168,10 +169,16 @@ void Application::mouseButtonCallback(GLFWwindow *window, int button,
     case GLFW_MOUSE_BUTTON_1:
       self->m_mode = InputMode::RotatingView;
       break;
+    case GLFW_MOUSE_BUTTON_2:
+      self->m_mode = InputMode::RotatingScene;
+      break;
     }
   }
   if (action == GLFW_RELEASE && button == GLFW_MOUSE_BUTTON_1) {
-    self->m_mode = InputMode::None;
+    if (self->m_mode == InputMode::RotatingView) self->m_mode = InputMode::None;
+  }
+  if (action == GLFW_RELEASE && button == GLFW_MOUSE_BUTTON_2) {
+    if (self->m_mode == InputMode::RotatingScene) self->m_mode = InputMode::None;
   }
 
   if (oldMode != self->m_mode) {
@@ -215,18 +222,19 @@ void Application::keyCallback(GLFWwindow *window, int key, int scancode,
     case GLFW_KEY_S:
     case GLFW_KEY_A:
     case GLFW_KEY_D: {
-      // Use world-space axes for consistent, predictable rotation
+      glm::mat4 viewRot = glm::eulerAngleYX(glm::radians(self->m_viewSettings.yaw), glm::radians(self->m_viewSettings.pitch));
+      glm::mat4 viewRotInv = glm::inverse(viewRot);
+      glm::vec3 camRight = glm::vec3(viewRotInv[0]);
       glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f);
-      glm::vec3 worldRight = glm::vec3(1.0f, 0.0f, 0.0f);
       
-      // Simple rotations: W/S tilt forward/back, A/D spin left/right
+      // Simple rotations: W/S tilt forward/back (around cam right), A/D spin left/right (around world up)
       if (key == GLFW_KEY_W) {
         // Tilt forward (top goes away)
-        glm::quat rot = glm::angleAxis(glm::radians(-KeyboardRotationSpeed), worldRight);
+        glm::quat rot = glm::angleAxis(glm::radians(-KeyboardRotationSpeed), camRight);
         self->m_sceneSettings.rotation = rot * self->m_sceneSettings.rotation;
       } else if (key == GLFW_KEY_S) {
         // Tilt backward (top comes toward)
-        glm::quat rot = glm::angleAxis(glm::radians(KeyboardRotationSpeed), worldRight);
+        glm::quat rot = glm::angleAxis(glm::radians(KeyboardRotationSpeed), camRight);
         self->m_sceneSettings.rotation = rot * self->m_sceneSettings.rotation;
       } else if (key == GLFW_KEY_A) {
         // Spin counter-clockwise (left)
